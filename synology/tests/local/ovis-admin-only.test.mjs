@@ -11,22 +11,17 @@ import {fileURLToPath} from 'node:url';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const manifest = readFileSync(join(root, 'dsm-package.yaml'), 'utf8');
+const compose = readFileSync(join(root, 'compose.yaml'), 'utf8');
 
-test('manifest: admin-only entry and gateway, upstream on loopback, no way around the gate', () => {
+test('manifest: admin-only entry and gateway, private container ingress, no way around the gate', () => {
   assert.match(manifest, /^entry: admin-only$/m);
   assert.match(manifest, /^  access: dsm-admins$/m);
-  assert.match(manifest, /^    HOST: "127\.0\.0\.1"$/m);
+  assert.doesNotMatch(compose, /^\s*ports:/m);
   // relay sessions and Portal would reach Ovis without the DSM gate
-  assert.match(manifest, /^    OVIS_TAILSCALE_SERVE_ONLY: "1"$/m);
+  assert.match(compose, /OVIS_TAILSCALE_SERVE_ONLY: '1'/);
   for (const key of ['upstream_auth_paths', 'passthrough', 'public_paths', 'redirects', 'ctl', 'portal'])
     assert.doesNotMatch(manifest, new RegExp(`^\\s*${key}:`, 'm'), key);
   assert.match(manifest, /administrators only/);
-});
-
-test('backend permissions deny everyone but administrators by default', () => {
-  const permissions = JSON.parse(readFileSync(join(root, 'backend/internal/api/permissions.json'), 'utf8'));
-  assert.equal(permissions.default, 'administrators');
-  for (const [method, who] of Object.entries(permissions.methods)) assert.equal(who, 'administrators', method);
 });
 
 const spks = existsSync(join(root, 'dist')) ? readdirSync(join(root, 'dist')).filter((name) => name.endsWith('.spk')) : [];
@@ -49,7 +44,7 @@ for (const spk of spks) {
       assert.equal(gateway.mode, 'token');
       assert.deepEqual(gateway.passthrough, []);
       assert.deepEqual(gateway.redirects, {});
-      assert.equal(new URL(gateway.upstream).hostname, '127.0.0.1');
+      assert.match(new URL(gateway.upstream).hostname, /^10\./);
 
       // DSM nginx only forwards the dedicated port to the gateway's private socket
       const nginx = readFileSync(join(dir, 'sso/native-nginx.conf'), 'utf8');
@@ -58,7 +53,7 @@ for (const spk of spks) {
 
       // the only DSM CGIs are the SDK's entry gate and identity-gateway CGIs
       const cgis = files.filter((f) => /\.cgi$/.test(f)).sort();
-      assert.deepEqual(cgis, ['ui/cgi/api.cgi', 'ui/sso/authorize.cgi', 'ui/sso/open.cgi', 'ui/sso/settings.cgi']);
+      assert.deepEqual(cgis, ['ui/sso/authorize.cgi', 'ui/sso/open.cgi', 'ui/sso/settings.cgi']);
       assert.ok(!files.some((f) => /^ui\/.*\.(lib|api)$/.test(f) || f.startsWith('ui/webapi/')), 'no DSM WebAPI of its own');
     } finally {
       rmSync(dir, {recursive: true, force: true});

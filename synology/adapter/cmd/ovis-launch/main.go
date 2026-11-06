@@ -63,7 +63,10 @@ func run() error {
 	app := filepath.Join(payload, "app")
 	bun := filepath.Join(payload, "bun")
 	herdrBin := filepath.Join(payload, "herdr")
-	t, err := token.Ensure(token.Path(os.Getenv))
+	t := os.Getenv("OVIS_TOKEN")
+	if t == "" {
+		t, err = token.Ensure(token.Path(os.Getenv))
+	}
 	if err != nil {
 		return fmt.Errorf("gateway token: %w", err)
 	}

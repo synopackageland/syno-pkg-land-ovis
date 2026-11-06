@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Native payload hook: build the merged upstream tree with its own toolchain
+# Image payload preparation: build the merged upstream tree with its own toolchain
 # (Bun, as upstream's `bun run build` and remote-PC bundle do) and stage one
 # daemon payload per declared architecture below synology/daemon/<arch>.
 #

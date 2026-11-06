@@ -23,3 +23,5 @@ dist/
 /daemon/
 /.build/
 node_modules/
+
+/helpers/
