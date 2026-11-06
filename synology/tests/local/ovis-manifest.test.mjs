@@ -31,3 +31,20 @@ test('attribution: upstream maintainer, Syno Package Land distributor', () => {
   line(/^  distributor: Syno Package Land$/m);
   line(/^displayname: Ovis$/m);
 });
+
+test('the bundled herdr listens where Ovis reads, and its pin follows upstream', () => {
+  // ovis-launch sets herdr's XDG_CONFIG_HOME to the folder above herdr/herdr.sock
+  line(/^    HERDR_SOCKET: "\$\{SYNOPKG_PKGVAR\}\/herdr\/herdr\.sock"$/m);
+  const build = readFileSync(new URL('../../build-source.sh', import.meta.url), 'utf8');
+  const version = /^HERDR_VERSION=(\S+)$/m.exec(build)?.[1];
+  assert.ok(version, 'HERDR_VERSION');
+  const upstream = readFileSync(new URL('../../../scripts/build-remote-bundle.ts', import.meta.url), 'utf8');
+  assert.match(upstream, new RegExp(`herdr/releases/download/v${version.replaceAll('.', '\\.')}/`));
+  for (const [, name, sha] of build.matchAll(/echo "(herdr-linux-\w+) ([0-9a-f]{64})"/g))
+    assert.match(upstream, new RegExp(`"${name}", "${sha}"`), name);
+  assert.ok(readFileSync(new URL(`../../LICENSES/herdr-${version}-LICENSE.txt`, import.meta.url), 'utf8').includes('Apache License'));
+});
+
+test('the icon is drawn per size from icon_256.png down', () => {
+  line(/^icon: assets\/icon$/m);
+});

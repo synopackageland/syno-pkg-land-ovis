@@ -8,15 +8,18 @@
 # tree: it builds in a private export of the selected commit under .build/.
 #
 # Each payload holds:
-#   ovis-launch   env launcher (adapter/): creates the per-install OVIS_TOKEN, execs Bun
+#   ovis-launch   launcher and supervisor (adapter/): creates the per-install
+#                 OVIS_TOKEN, runs herdr's headless server, then Bun
 #   ovis-token    DSM identity gateway token adapter (adapter/)
 #   bun           official Bun release for the NAS, pinned by SHA-256
+#   herdr         official herdr release for the NAS, pinned by SHA-256: the
+#                 version upstream's own Linux remote bundle ships
 #   app/          upstream server/, shared/, integrations/, dist/, production
 #                 node_modules/ and package.json: the file set of upstream's
 #                 own Linux runtime bundle (scripts/build-remote-bundle.ts),
 #                 node_modules/ pruned to what the server imports,
-#                 without Node, node-pty or herdr. The NAS runs no herdr or
-#                 panes of its own; remote PCs bring their own bridge.
+#                 without Node or node-pty (no PTY host: the NAS's own
+#                 panes are drawn from pane.read). Remote PCs bring their own bridge.
 set -euo pipefail
 
 packaging=$(cd -- "$(dirname -- "$0")" && pwd)
@@ -33,6 +36,17 @@ bun_pin() {
     linux-x64 | x86_64) echo "bun-linux-x64-baseline c678040f14fe0440eb839d37cbd0ce4c051a32da72806ac97de6a6aab6bf728f" ;;
     linux-arm64 | aarch64) echo "bun-linux-aarch64 54328bbc2d9c8e0c9f892c544d66c57a83b84139e34909e5ee81758f1ac8fda7" ;;
     *) echo "No pinned Bun for $1" >&2; return 1 ;;
+  esac
+}
+
+# herdr 0.9.3, the release upstream's scripts/build-remote-bundle.ts pins for its
+# Linux bundles (same digests). Static binaries; Apache-2.0 (LICENSES/).
+HERDR_VERSION=0.9.3
+herdr_pin() {
+  case $1 in
+    x86_64) echo "herdr-linux-x86_64 18a8dc65f1c2fa485884344356dea1cfd911c6f06cf46fa78e193f4087f4dba7" ;;
+    aarch64) echo "herdr-linux-aarch64 4de7aa3e25678812e92960de64f7c2aaa1bca1f0f80a3c5e559837e231e1f5c0" ;;
+    *) echo "No pinned herdr for $1" >&2; return 1 ;;
   esac
 }
 
@@ -59,6 +73,19 @@ fetch_bun() {
   echo "$downloads/$name/bun"
 }
 
+# Fetch one pinned herdr build and print the path of its verified binary.
+fetch_herdr() {
+  local name sha file
+  read -r name sha < <(herdr_pin "$1")
+  file="$downloads/herdr-$HERDR_VERSION-$name"
+  if [[ ! -f $file ]] || [[ $(shasum -a 256 "$file" | cut -d' ' -f1) != "$sha" ]]; then
+    curl -fsSL --retry 3 -o "$file.part" "https://github.com/herdrdev/herdr/releases/download/v$HERDR_VERSION/$name"
+    [[ $(shasum -a 256 "$file.part" | cut -d' ' -f1) == "$sha" ]] || { echo "herdr checksum mismatch: $name" >&2; exit 1; }
+    mv "$file.part" "$file"
+  fi
+  echo "$file"
+}
+
 # A private export of the selected upstream commit: the fork's tree is never touched.
 src="$work/src"
 rm -rf "$src"
@@ -68,6 +95,11 @@ git -C "$source_root" archive "$commit" | tar -x -C "$src"
 pm=$(sed -n 's/.*"packageManager": *"bun@\([^"]*\)".*/\1/p' "$src/package.json")
 [[ $pm == "$BUN_VERSION" ]] || {
   echo "Upstream now pins bun@$pm; update BUN_VERSION and the digests in build-source.sh" >&2
+  exit 1
+}
+
+grep -q "herdr/releases/download/v$HERDR_VERSION/" "$src/scripts/build-remote-bundle.ts" || {
+  echo "Upstream's remote bundle no longer pins herdr $HERDR_VERSION; update HERDR_VERSION and the digests in build-source.sh" >&2
   exit 1
 }
 
@@ -132,7 +164,8 @@ for pair in x86_64:amd64 aarch64:arm64; do
     GOARCH=$goarch go build -trimpath -ldflags "-s -w" -o "$out/ovis-token" ./cmd/ovis-token
   )
   cp "$(fetch_bun "$arch")" "$out/bun"
+  cp "$(fetch_herdr "$arch")" "$out/herdr"
   cp -R "$app" "$out/app"
-  chmod 0755 "$out/ovis-launch" "$out/ovis-token" "$out/bun"
+  chmod 0755 "$out/ovis-launch" "$out/ovis-token" "$out/bun" "$out/herdr"
 done
 echo "payload staged in $packaging/daemon" >&2
