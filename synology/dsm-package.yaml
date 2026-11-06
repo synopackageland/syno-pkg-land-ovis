@@ -33,7 +33,7 @@ install:
 
 # The SDK fixes the runtime UID/GID to the DSM package account.
 compose:
-  sdk: 0.50.16
+  sdk: 0.52.0
   files: [compose.yaml]
   helpers:
     x86_64: helpers/x86_64
@@ -56,7 +56,7 @@ compose:
   network: {egress: internet}
 
 identity_gateway:
-  sdk: 0.50.16
+  sdk: 0.52.0
   # A DSM administrator signs in; the fixed token adapter then supplies Ovis's
   # own proxy credential (Authorization: Bearer <OVIS_TOKEN>), the sign-in
   # proxy setup upstream documents. The browser never receives the token, and

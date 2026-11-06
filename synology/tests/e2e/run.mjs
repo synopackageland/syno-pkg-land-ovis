@@ -279,17 +279,25 @@ try {
     await screen.waitFor({ timeout: 180_000 });
     const input = await terminalReady();
     // Split the expected output so command echo alone cannot satisfy readback.
-    const command = `printf '%s%s\\n' 'terminal-ok-' '${fixture}'; node -v; printf '%s' '${fixture}' > marker`;
+    const tools = ['bash', 'git', 'ssh', 'curl', 'jq', 'rg', 'fd', 'python', 'python3', 'pip3', 'sqlite3'];
+    const toolCheck = `(set -e; for tool in ${tools.join(' ')}; do command -v "$tool" >/dev/null; done; `
+      + `test "$(printf '{"ok":true}' | jq -r .ok)" = true; `
+      + `printf 'runtime-tools\\n' | rg -q '^runtime-tools$'; fd --version >/dev/null; curl --version >/dev/null; `
+      + `python -c 'import sqlite3, ssl; assert sqlite3.connect(":memory:").execute("select 1").fetchone() == (1,)'; `
+      + `pip3 --version >/dev/null; test "$(sqlite3 :memory: 'select 1;')" = 1; `
+      + `printf '%s%s\\n' 'tools-ok-' '${fixture}')`;
+    const command = `${toolCheck}; printf '%s%s\\n' 'terminal-ok-' '${fixture}'; node -v; printf '%s' '${fixture}' > marker`;
     await input.pressSequentially(command);
     await input.press('Enter');
     stage = 'shell-command:output-readback';
     const read = await until(() => api(`/api/pane/read?pane_id=${encodeURIComponent(paneId)}&source=visible&format=text`),
-      value => value.read?.text.includes(`terminal-ok-${fixture}`) && /v22\.\d+\.\d+/.test(value.read.text),
+      value => value.read?.text.includes(`terminal-ok-${fixture}`)
+        && value.read.text.includes(`tools-ok-${fixture}`) && /v22\.\d+\.\d+/.test(value.read.text),
       'Shell output not observed');
     assert.equal(await container(`cat ${quote(`${fixtureDir}/marker`)}`), fixture);
     await writeFile(join(evidence, 'terminal.txt'), read.read.text, { mode: 0o600 });
     await shot('terminal.png');
-    return { echoOutput: true, nodeVersion: read.read.text.match(/v22\.\d+\.\d+/)[0], marker: true, screenshot: 'terminal.png' };
+    return { echoOutput: true, runtimeTools: tools, toolsExecuted: true, nodeVersion: read.read.text.match(/v22\.\d+\.\d+/)[0], marker: true, screenshot: 'terminal.png' };
   });
   await check('restart-persistence', async () => {
     assert.ok(workspaceId && paneId && directoryCreated, 'Shell fixture prerequisite failed');
