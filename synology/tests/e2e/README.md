@@ -5,6 +5,10 @@ main menu, starts a private shell workspace through Ovis, types a harmless comma
 reads its actual output, and stops/starts **Ovis only** to check persistence.
 After restart it reopens the DSM entry with the retained administrator session
 to obtain a fresh gateway session before checking the saved marker and workspace.
+It then selects the fixture through the actual sidebar workspace control. The
+header repeats the workspace label but does not select a pane or ask an open
+Setup Guide to step aside; clicking that text can leave the terminal unmounted
+after navigation. The test does not dismiss onboarding or change its saved state.
 It also checks administrator admission, anonymous/nonadministrator refusal,
 container isolation, and telemetry/relay/Portal state. It never installs,
 upgrades, uninstalls, reboots, changes accounts, or changes outbound settings.
@@ -88,7 +92,11 @@ other workspaces, chats, input values and xterm output are hidden during capture
 Screenshot failure is reported without replacing the original error. The same
 case is never retried, and cleanup cannot overwrite its failure evidence.
 Run `node --test synology/tests/e2e/diagnostics.test.mjs` from the repository
-root for the isolated diagnostic/privacy tests (no NAS access). `terminal.txt` records only the fixture pane's harmless command output.
+root for the isolated diagnostic/privacy tests (no NAS access).
+`node --test synology/tests/e2e/workspace-control.test.mjs` adds isolated browser
+regressions for duplicate header/sidebar labels and ambiguous fixture refusal.
+It uses the root checkout's Playwright and `OVIS_E2E_BROWSER` when set; it has no
+NAS connection. `terminal.txt` records only the fixture pane's harmless command output.
 Screenshots include only the Ovis menu icon, the refusal explanation,
 and this run's terminal canvas. Credentials, browser traces, storage state,
 HTTP bodies and other people's terminal/sidebar contents are not recorded.
