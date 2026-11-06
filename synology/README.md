@@ -34,6 +34,19 @@ browser ──HTTPS :27317 (DSM nginx, DSM certificate)──▶ SDK identity ga
   `/api` and `/ws` would collide with DSM's routes, and a service worker at
   `/sw.js` would take scope over the DSM origin and could intercept DSM's own
   pages. A port of its own gives Ovis a separate origin.
+- **Administrators only:**
+  - **Icon:** the DSM main-menu icon is shown only to administrators (`allUsers: false`).
+  - **Gateway:** every request on the dedicated port (the app, `/api`, `/ws`, static files and
+    device pairing) passes the identity gateway's `access: dsm-admins` check. It has no
+    passthrough or public paths.
+  - **Ovis itself:** listens on `127.0.0.1` only, so nothing reaches it around the gateway.
+  - **DSM CGIs:** the package's only CGIs are the SDK's entry gate and gateway CGIs; they are
+    admin-only and their permissions default to `administrators`.
+  - **Relay and Portal:** both would reach Ovis without the gateway, so
+    `OVIS_TAILSCALE_SERVE_ONLY=1` keeps them off. With `OVIS_TOKEN` set, its Tailscale rules
+    come after the token check and admit no one.
+  - **Regression test:** `tests/local/ovis-admin-only.test.mjs` checks all of this in the
+    manifest and in a built SPK.
 - **Sign-in:** DSM administrators only (`entry: admin-only`,
   `access: dsm-admins`). Ovis's documented sign-in-proxy setup: the server runs
   with `OVIS_TOKEN`, and the gateway sends it on every admitted request. The
@@ -58,7 +71,7 @@ browser ──HTTPS :27317 (DSM nginx, DSM certificate)──▶ SDK identity ga
   `OVIS_TELEMETRY` is not set, because it would lock the switch off.
 - **Outbound connections:** remote-PC bridge bundles come from upstream's GitHub
   release `remote-v<N>`, checked against the SHA-256 in its manifest. The Ovis
-  relay (`relay.ovis.sh`) stays off until a user turns it on.
+  relay (`relay.ovis.sh`) and Portal are disabled (see Administrators only).
 
 ## Files
 

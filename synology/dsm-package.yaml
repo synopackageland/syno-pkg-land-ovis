@@ -8,7 +8,7 @@ schema: 2
 package: Ovis
 version: 0.4.22
 # The build resets to 1 with every upstream release (INFO <upstream>-0001).
-build: 2
+build: 3
 displayname: Ovis
 description: Herdr's coding agents in your browser and on your phone, served from your NAS.
 # Upstream's app icon (public/icons/icon-512.png); the build scales it to every
@@ -56,6 +56,12 @@ daemon:
     # so anonymous usage counts are off by default and Settings > About can
     # still turn them on.
     OVIS_NO_OPEN: "1"
+    # Administrators only: every way into Ovis goes through the DSM identity
+    # gateway (access: dsm-admins). This keeps Ovis's own ways around it shut:
+    # the Ovis relay (relay.ovis.sh) cannot be enabled and relay sessions are
+    # refused, and Portal (a public tunnel) cannot start. With OVIS_TOKEN set,
+    # its Tailscale rules come after the token check, so it admits no one.
+    OVIS_TAILSCALE_SERVE_ONLY: "1"
     # Package Center owns versions: server/index.ts has no self-updater (that
     # is server/managed.ts, which needs a Git checkout), and auto-update stays off.
     OVIS_AUTO_UPDATE: "0"
@@ -104,16 +110,18 @@ metadata:
       PCs under Settings > Remote PCs and Ovis reaches their herdr sessions over
       SSH. The NAS runs no herdr or agents itself, so the sidebar row for the NAS
       (this computer) always shows herdr as unreachable; that is expected.
-      Administrators open it from the DSM main menu and all share one Ovis
-      identity. Anonymous usage counts are off by default (Settings > About can
+      It is for DSM administrators only: the icon is shown only to
+      administrators, every request goes through the DSM administrator gate,
+      and all administrators share one Ovis identity. The Ovis relay and Portal
+      are disabled. Anonymous usage counts are off by default (Settings > About can
       turn them on), and updates come only from Package Center.
     zh-TW: |-
       Ovis 把電腦上的 coding agent 帶到瀏覽器和手機：對話、提示與核准卡片、推播
       通知和即時終端機，適用於 herdr 工作階段。在 DSM 上它是一直開機的連線伺服器：
       在 Settings > Remote PCs 加入電腦，Ovis 便透過 SSH 連到這些電腦的 herdr 工作
       階段。NAS 本身不執行 herdr 或 agent，所以側欄中 NAS 本機那一列一律顯示無法
-      連線 herdr，這是預期行為。管理員從 DSM 主選單開啟，所有管理員共用同一個 Ovis
-      身分。匿名使用統計預設關閉（可在 Settings > About 開啟），更新只透過套件中心
+      連線 herdr，這是預期行為。僅限 DSM 管理員：只有管理員看得到圖示，每個請求都經過
+      DSM 管理員驗證，所有管理員共用同一個 Ovis 身分；Ovis relay 與 Portal 已停用。匿名使用統計預設關閉（可在 Settings > About 開啟），更新只透過套件中心
 
 i18n:
   messages: i18n/messages
