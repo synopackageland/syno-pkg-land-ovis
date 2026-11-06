@@ -8,7 +8,7 @@ schema: 2
 package: Ovis
 version: 0.4.22
 # The build resets to 1 with every upstream release (INFO <upstream>-0001).
-build: 1
+build: 2
 displayname: Ovis
 description: Herdr's coding agents in your browser and on your phone, served from your NAS.
 # Upstream's app icon (public/icons/icon-512.png); the build scales it to every
@@ -51,9 +51,10 @@ daemon:
     # No local herdr on the NAS; this keeps the local row's error stable and
     # inside the package's own folder.
     HERDR_SOCKET: "${SYNOPKG_PKGVAR}/herdr/herdr.sock"
-    # Anonymous usage counts are off in this package. Upstream sends them by
-    # default; this env setting wins over the in-app switch.
-    OVIS_TELEMETRY: "0"
+    # No OVIS_TELEMETRY here: that would lock the in-app switch. ovis-launch
+    # instead writes upstream's own off mark (telemetry-off) on a first start,
+    # so anonymous usage counts are off by default and Settings > About can
+    # still turn them on.
     OVIS_NO_OPEN: "1"
     # Package Center owns versions: server/index.ts has no self-updater (that
     # is server/managed.ts, which needs a Git checkout), and auto-update stays off.
@@ -101,15 +102,18 @@ metadata:
       chats, prompt and approval cards, push alerts and the live terminal, for
       herdr sessions. On DSM it runs as the always-on connection server: add your
       PCs under Settings > Remote PCs and Ovis reaches their herdr sessions over
-      SSH. The NAS runs no agents itself. Administrators open it from the DSM main
-      menu. Anonymous usage counts are off in this package (OVIS_TELEMETRY=0), and
-      updates come only from Package Center.
+      SSH. The NAS runs no herdr or agents itself, so the sidebar row for the NAS
+      (this computer) always shows herdr as unreachable; that is expected.
+      Administrators open it from the DSM main menu and all share one Ovis
+      identity. Anonymous usage counts are off by default (Settings > About can
+      turn them on), and updates come only from Package Center.
     zh-TW: |-
       Ovis 把電腦上的 coding agent 帶到瀏覽器和手機：對話、提示與核准卡片、推播
       通知和即時終端機，適用於 herdr 工作階段。在 DSM 上它是一直開機的連線伺服器：
       在 Settings > Remote PCs 加入電腦，Ovis 便透過 SSH 連到這些電腦的 herdr 工作
-      階段。NAS 本身不執行 agent。管理員從 DSM 主選單開啟。此套件關閉匿名使用統計
-      （OVIS_TELEMETRY=0），更新只透過套件中心
+      階段。NAS 本身不執行 herdr 或 agent，所以側欄中 NAS 本機那一列一律顯示無法
+      連線 herdr，這是預期行為。管理員從 DSM 主選單開啟，所有管理員共用同一個 Ovis
+      身分。匿名使用統計預設關閉（可在 Settings > About 開啟），更新只透過套件中心
 
 i18n:
   messages: i18n/messages

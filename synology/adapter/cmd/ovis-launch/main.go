@@ -1,7 +1,8 @@
 // Command ovis-launch is the package daemon's env launcher for Ovis.
 //
 // It makes sure the per-install OVIS_TOKEN exists, adds it to the runtime
-// environment and replaces itself with the packaged Bun running the upstream
+// environment, turns anonymous usage counts off by default on a first start
+// (see telemetryDefaultOff) and replaces itself with the packaged Bun running the upstream
 // server entrypoint (server/index.ts, as `bun run server` does). That
 // entrypoint has no self-updater: updates come only from Package Center.
 // Every other setting is a fixed daemon.env value in dsm-package.yaml.
@@ -39,6 +40,9 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("gateway token: %w", err)
 	}
+	if err := telemetryDefaultOff(os.Getenv("OVIS_STATE_DIR")); err != nil {
+		return fmt.Errorf("telemetry default: %w", err)
+	}
 	if err := os.Chdir(app); err != nil {
 		return err
 	}
@@ -61,4 +65,33 @@ func withToken(env []string, t string) []string {
 
 func hasKey(kv, key string) bool {
 	return len(kv) > len(key) && kv[:len(key)] == key && kv[len(key)] == '='
+}
+
+// telemetryDefaultOff makes upstream's anonymous usage counts start off while
+// leaving its own Settings > About switch in the user's hands. On a first start
+// (no telemetry.json and no mark yet) it writes upstream's own off mark,
+// telemetry-off, in the state directory. Turning the switch on removes that
+// mark and saves telemetry.json, so later starts leave the choice alone.
+func telemetryDefaultOff(stateDir string) error {
+	if stateDir == "" {
+		return nil
+	}
+	for _, name := range []string{"telemetry.json", "telemetry-off"} {
+		if _, err := os.Lstat(filepath.Join(stateDir, name)); err == nil {
+			return nil
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+	}
+	if err := os.MkdirAll(stateDir, 0o700); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(filepath.Join(stateDir, "telemetry-off"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		if os.IsExist(err) {
+			return nil
+		}
+		return err
+	}
+	return f.Close()
 }

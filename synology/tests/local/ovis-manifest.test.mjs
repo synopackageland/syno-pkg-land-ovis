@@ -16,8 +16,11 @@ test('Ovis listens on loopback only, behind the DSM gateway', () => {
   assert.doesNotMatch(manifest, /^\s*upstream_auth_paths:/m);
 });
 
-test('telemetry and self-update stay off; no ctl, no root', () => {
-  line(/^    OVIS_TELEMETRY: "0"$/m);
+test('telemetry stays user-controlled; self-update off; no ctl, no root', () => {
+  // off by default comes from ovis-launch's first-start mark; the env would lock the in-app switch
+  assert.doesNotMatch(manifest, /^\s*OVIS_TELEMETRY:/m);
+  assert.doesNotMatch(manifest, /^\s*DO_NOT_TRACK:/m);
+  line(/off by default/);
   line(/^    OVIS_AUTO_UPDATE: "0"$/m);
   assert.doesNotMatch(manifest, /^ctl:/m);
   assert.doesNotMatch(manifest, /rootOps|root-ops|run-as: *root/);
