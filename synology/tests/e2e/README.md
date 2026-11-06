@@ -36,7 +36,7 @@ Create a private JSON configuration outside Git (`chmod 600`):
   "appUrl": "https://<device>:<ovis-port>",
   "sshTarget": "root@<device>",
   "containerName": "<installed-ovis-container>",
-  "expectedVersion": "0.4.22-0005",
+  "expectedVersion": "0.4.22-0006",
   "admin": {"username": "<administrator>", "password": "<from-secret-store>"},
   "normal": {"username": "<existing-nonadministrator>", "password": "<from-secret-store>"}
 }
@@ -61,7 +61,9 @@ For an explicitly authorized focused rerun, set
 `OVIS_E2E_FOCUS=shell-persistence`. This runs only `shell-command`,
 `restart-persistence`, and `cleanup-and-running`. Installed-version verification
 and administrator sign-in are setup only; the other six cases are not executed.
-Use a new evidence directory so the original run remains intact.
+The shell case also checks runtime tool discovery and executes jq, rg, fd, curl,
+Python/SQLite and pip inside the ordinary user pane. Use a new evidence directory
+so the original run remains intact.
 
 The default imports resolve `playwright` and `@synology-vincentt/e2e-clef/dsm`
 from the runner's environment. To reuse separately installed or locally built
