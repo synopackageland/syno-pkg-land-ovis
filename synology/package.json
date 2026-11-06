@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npm run test:unit",
+    "test:unit": "node --test tests/unit/*.test.mjs",
+    "test:local": "node --test tests/local/*.test.mjs",
+    "test:nas:ctl": "node --env-file-if-exists=.env --test tests/ctl/*.test.mjs"
+  },
+  "devDependencies": {
+    "@synopackageland/cli": "0.48.24"
+  }
+}
