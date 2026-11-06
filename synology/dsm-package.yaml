@@ -1,23 +1,25 @@
 # Ovis for DSM: the upstream Ovis web app (a browser and phone client for the
 # herdr terminal multiplexer) behind DSM administrator sign-in. The NAS is the
 # always-on "connection server": it reaches the herdr sessions on other PCs
-# over SSH (Settings > Remote PCs). It runs no herdr or agents of its own.
+# over SSH (Settings > Remote PCs), and runs a bundled herdr of its own so the
+# NAS's own row works too.
 # `synopkgland build` reads this file.
 schema: 2
 
 package: Ovis
 version: 0.4.22
 # The build resets to 1 with every upstream release (INFO <upstream>-0001).
-build: 3
+build: 4
 displayname: Ovis
 description: Herdr's coding agents in your browser and on your phone, served from your NAS.
-# Upstream's app icon (public/icons/icon-512.png); the build scales it to every
-# size DSM loads.
-icon: assets/icon.png
+# Upstream's sheep (app/assets/ovis-sheep.png), unchanged, on a rounded DSM-style
+# tile (assets/icon/, variant b of assets/make-icon.py), drawn per size so
+# 16, 24 and 32 px use a fuller tile with no drop shadows.
+icon: assets/icon
 # The original project is the maintainer; Syno Package Land is the distributor.
 maintainer: devswha
 os_min_ver: "7.2.1-69057"
-# Bun, the upstream runtime, ships Linux builds for x86_64 and aarch64 only.
+# Bun, the upstream runtime, and herdr ship Linux builds for x86_64 and aarch64 only.
 arches: [x86_64, aarch64]
 
 # The DSM menu icon and Package Center's Open start the gateway entry, which
@@ -38,7 +40,9 @@ install:
 
 daemon:
   # ovis-launch creates the per-install OVIS_TOKEN (package-private, 0600),
-  # then execs the packaged Bun on upstream's server/index.ts (`bun run server`).
+  # starts the bundled herdr (`herdr server`, as the package account) on
+  # HERDR_SOCKET, then runs the packaged Bun on upstream's server/index.ts
+  # (`bun run server`). Package stop ends Ovis, then herdr.
   exec: ovis-launch
   targets:
     x86_64: daemon/x86_64
@@ -48,8 +52,8 @@ daemon:
     HOST: "127.0.0.1"
     PORT: "37317"
     OVIS_STATE_DIR: "${SYNOPKG_PKGVAR}/ovis"
-    # No local herdr on the NAS; this keeps the local row's error stable and
-    # inside the package's own folder.
+    # The bundled herdr's socket: ovis-launch sets herdr's XDG_CONFIG_HOME to
+    # ${SYNOPKG_PKGVAR}, and herdr listens on $XDG_CONFIG_HOME/herdr/herdr.sock.
     HERDR_SOCKET: "${SYNOPKG_PKGVAR}/herdr/herdr.sock"
     # No OVIS_TELEMETRY here: that would lock the in-app switch. ovis-launch
     # instead writes upstream's own off mark (telemetry-off) on a first start,
@@ -108,8 +112,8 @@ metadata:
       chats, prompt and approval cards, push alerts and the live terminal, for
       herdr sessions. On DSM it runs as the always-on connection server: add your
       PCs under Settings > Remote PCs and Ovis reaches their herdr sessions over
-      SSH. The NAS runs no herdr or agents itself, so the sidebar row for the NAS
-      (this computer) always shows herdr as unreachable; that is expected.
+      SSH. The NAS also runs a bundled herdr of its own, so its sidebar row works
+      and shells or agents installed for the package can run on the NAS.
       It is for DSM administrators only: the icon is shown only to
       administrators, every request goes through the DSM administrator gate,
       and all administrators share one Ovis identity. The Ovis relay and Portal
@@ -119,8 +123,7 @@ metadata:
       Ovis 把電腦上的 coding agent 帶到瀏覽器和手機：對話、提示與核准卡片、推播
       通知和即時終端機，適用於 herdr 工作階段。在 DSM 上它是一直開機的連線伺服器：
       在 Settings > Remote PCs 加入電腦，Ovis 便透過 SSH 連到這些電腦的 herdr 工作
-      階段。NAS 本身不執行 herdr 或 agent，所以側欄中 NAS 本機那一列一律顯示無法
-      連線 herdr，這是預期行為。僅限 DSM 管理員：只有管理員看得到圖示，每個請求都經過
+      階段。NAS 本身也執行套件內附的 herdr，所以側欄中 NAS 本機那一列可正常使用。僅限 DSM 管理員：只有管理員看得到圖示，每個請求都經過
       DSM 管理員驗證，所有管理員共用同一個 Ovis 身分；Ovis relay 與 Portal 已停用。匿名使用統計預設關閉（可在 Settings > About 開啟），更新只透過套件中心
 
 i18n:

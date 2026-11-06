@@ -14,11 +14,34 @@ multiplexer, as a Synology DSM package. Everything here is ours; files outside
 The NAS is Ovis's always-on *connection server*, the setup upstream describes in
 [One always-on PC for all your PCs](../docs/guide.md#one-always-on-pc-for-all-your-pcs).
 Add your computers under **Settings → Remote PCs**: Ovis connects to them over
-SSH as the package account and starts its own bridge next to their herdr. The
-NAS runs no herdr and no agents, so the sidebar's row for the NAS itself (this
-computer) always says herdr cannot be reached. That is expected on a NAS, not a
-fault; the package does not ship herdr and does not patch upstream to hide the
-row.
+SSH as the package account and starts its own bridge next to their herdr.
+
+The NAS also runs herdr itself, so the sidebar's row for the NAS (this computer)
+works instead of showing "cannot reach herdr". Upstream has no setting that
+turns this computer's row off; the per-browser **Show in sidebar** switch cannot
+hide the last PC, and the package never patches upstream's code. So the package
+ships herdr:
+
+- **Binary:** the official herdr Linux release (static, x86_64 and aarch64),
+  pinned by version and SHA-256 in `build-source.sh`. It is the version
+  upstream's own Linux remote bundle ships (`scripts/build-remote-bundle.ts`),
+  and the build stops when upstream moves that pin. Apache-2.0, in `LICENSES/`.
+- **Process:** `ovis-launch` starts `herdr server` (headless) as the package
+  account, then Ovis; package stop ends Ovis, then herdr (SIGTERM, SIGKILL after
+  10 s). A herdr that exits on its own is started again with backoff.
+- **Socket:** herdr listens on `$XDG_CONFIG_HOME/herdr/herdr.sock`; the launcher
+  sets herdr's `XDG_CONFIG_HOME` to the package var folder, so it is the
+  manifest's `HERDR_SOCKET` (`${SYNOPKG_PKGVAR}/herdr/herdr.sock`).
+  `OVIS_HERDR_BIN` names the bundled binary.
+- **Panes on the NAS:** shells run as the package account (`/bin/bash`), with
+  the package var folder as home. No PTY host is shipped (no Node or Rust
+  host), so the NAS's own panes are mirrored from `pane.read`, as upstream does
+  without one. Agents run there only if installed for that account.
+- **Updates:** each package version ships the pinned herdr. herdr itself only
+  reports newer releases (it waits for an explicit install). Ovis's
+  **Settings → About → Update herdr** still works on Linux and has no off switch:
+  it replaces the bundled binary in place with herdr's latest release, and the
+  next package upgrade puts the pinned version back.
 
 ```text
 browser ──HTTPS :27317 (DSM nginx, DSM certificate)──▶ SDK identity gateway
@@ -58,8 +81,8 @@ browser ──HTTPS :27317 (DSM nginx, DSM certificate)──▶ SDK identity ga
   acceptable because only DSM administrators get through the gate; normal DSM
   users are refused before Ovis.
 - **Runtime:** official Bun 1.4.2 (upstream's pin; x86_64 uses the baseline
-  build for CPUs without AVX2) runs upstream's `server/index.ts`. No Node,
-  node-pty, Rust PTY host or herdr is shipped. armv7 is not built: Bun has no
+  build for CPUs without AVX2) runs upstream's `server/index.ts`, next to the
+  bundled herdr (above). No Node, node-pty or Rust PTY host is shipped. armv7 is not built: Bun has no
   armv7 release.
 - **Updates:** Package Center only. `server/index.ts` has no updater (that is
   `server/managed.ts`, which also needs a Git checkout); Settings → Updates says
@@ -69,7 +92,7 @@ browser ──HTTPS :27317 (DSM nginx, DSM certificate)──▶ SDK identity ga
   folder) on the first start only; **Settings → About → Anonymous usage counts**
   can turn them on, which removes the mark, and later starts keep that choice.
   `OVIS_TELEMETRY` is not set, because it would lock the switch off.
-- **Outbound connections:** remote-PC bridge bundles come from upstream's GitHub
+- **Outbound connections:** herdr may check for its own releases; remote-PC bridge bundles come from upstream's GitHub
   release `remote-v<N>`, checked against the SHA-256 in its manifest. The Ovis
   relay (`relay.ovis.sh`) and Portal are disabled (see Administrators only).
 
@@ -80,16 +103,17 @@ browser ──HTTPS :27317 (DSM nginx, DSM certificate)──▶ SDK identity ga
 | `dsm-package.yaml` | Package manifest: daemon, identity gateway, metadata |
 | `build-source.sh` | Native payload hook: builds upstream with Bun, stages `daemon/<arch>` |
 | `prune-runtime.mjs` | Keeps only the `node_modules` packages the server imports |
-| `adapter/` | `ovis-launch` (creates the token, marks usage counts off on a first start, execs Bun) and `ovis-token` (gateway adapter), with tests |
+| `adapter/` | `ovis-launch` (creates the token, marks usage counts off on a first start, runs herdr and Bun) and `ovis-token` (gateway adapter), with tests |
+| `assets/icon/`, `assets/make-icon.py` | DSM icon per size: upstream's sheep on a rounded tile; the script that draws it (maintainer tool) |
 | `upgrade.sh`, `version.mjs` | Merge an upstream release tag and set the version |
 | `upstream-source.json` | The upstream tag, commit and build packaged |
 | `backend/`, `i18n/` | SDK entry gate CGI and its messages |
-| `LICENSES/` | Our wrapper's license and Bun's license; upstream's license and notices ship in the payload's `app/` |
+| `LICENSES/` | Our wrapper's license, Bun's and herdr's licenses; upstream's license and notices ship in the payload's `app/` |
 
 ## Build
 
-Needs Go (1.26.10 or later), git, curl and unzip. The hook downloads Bun itself
-and checks its SHA-256.
+Needs Go (1.26.10 or later), git, curl and unzip. The hook downloads Bun and herdr itself
+and checks their SHA-256.
 
 ```sh
 npm ci                                   # in synology/, for the pinned CLI
