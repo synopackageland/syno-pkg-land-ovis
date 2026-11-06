@@ -8,6 +8,7 @@ container. Bun 1.4.2 and herdr 0.9.3 retain the checksum pins in `build-source.s
 Node 22.23.4 (with npm) comes from a digest-pinned official image in
 `container/Dockerfile`; only the binary and npm are copied into Ubuntu. The Node
 PTY fallback uses upstream's pinned @lydell/node-pty 1.1.0 target-native prebuild.
+Version 0.4.22-0006 adds common shell tools and Python with pip and venv support.
 
 ## Runtime and access
 
@@ -96,6 +97,33 @@ Ubuntu supplies glibc for Bun, Node and agents. Explicit additional packages:
 | curl, ca-certificates | HTTPS installers and certificate validation |
 | unzip, xz-utils | Common release archive extraction |
 | procps | Agent process inspection |
+| jq | JSON inspection and scripting |
+| ripgrep, fd-find | Fast content and file searches (`rg`, `fd`) |
+| less, file, tree | Page output, identify files and inspect directory trees |
+| zip | Create ZIP archives |
+| rsync | Incremental file transfers |
+| wget | Downloads for scripts that expect wget |
+| nano | Small interactive text editor |
+| python3, python3-pip, python3-venv | Python scripts and isolated package installation |
+| sqlite3 | Inspect and query local databases |
+| iputils-ping | Basic network diagnostics, subject to runtime network permissions |
+
+Ubuntu's `universe` component is enabled for these tools. All packages still use
+`--no-install-recommends`. `fd` links to Ubuntu's `fdfind`; `python` links to
+`python3`. herdr already provides persistent multiplexed terminals, so the image
+does not add tmux. The small ping package is used instead of the larger DNS suite.
+
+System Python retains Ubuntu's externally managed environment protection. Use a
+writable virtual environment for pure-Python packages; no
+`PIP_BREAK_SYSTEM_PACKAGES` override is needed:
+
+```sh
+python3 -m venv "$HOME/.venvs/project"
+"$HOME/.venvs/project/bin/pip" install <package>
+```
+
+The bounded `/tmp` tmpfs explicitly allows execution so temporary venv entrypoints
+also work. It retains `nosuid` and `nodev`; the root filesystem stays read-only.
 
 No compiler, sudo, Docker client or system daemon is installed. Agent installers
 needing extra system packages require a future image revision.
@@ -136,6 +164,12 @@ but makes every package download/upgrade carry the runtime layers again.
 
 `npm test` runs packaging access/pin contracts; `(cd adapter && go test ./...)`
 checks launcher/token behavior. `npm run test:local` also builds/inspects the SPK.
+`OVIS_TEST_IMAGE=<image> BUILD_PREFIX=<disposable-prefix> npm run test:image`
+checks both image architectures as UID 1000, with a read-only root filesystem,
+no capabilities and no network. It verifies the tools and symlinks, creates a
+temporary venv and installs/imports a synthetic pure-Python wheel offline.
+`OVIS_TEST_PLATFORMS=linux/amd64` selects a native-only development check;
+the default also needs arm64 emulation on an amd64 build host.
 Device acceptance must separately verify native-to-container upgrade, fresh
 administrator entry, anonymous/nonadmin rejection, an agent installed from an
 Ovis terminal, UID/mount readback and persistence. Static checks alone do not
