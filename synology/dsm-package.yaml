@@ -8,7 +8,7 @@ schema: 2
 package: Ovis
 version: 0.4.22
 # The build resets to 1 with every upstream release (INFO <upstream>-0001).
-build: 5
+build: 6
 displayname: Ovis
 description: Herdr's coding agents in your browser and on your phone, served from your NAS.
 # Upstream's sheep (app/assets/ovis-sheep.png), unchanged, on a rounded DSM-style

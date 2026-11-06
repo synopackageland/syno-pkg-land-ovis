@@ -3,6 +3,8 @@
 This opt-in suite exercises an already installed Ovis package. It opens the DSM
 main menu, starts a private shell workspace through Ovis, types a harmless command,
 reads its actual output, and stops/starts **Ovis only** to check persistence.
+After restart it reopens the DSM entry with the retained administrator session
+to obtain a fresh gateway session before checking the saved marker and workspace.
 It also checks administrator admission, anonymous/nonadministrator refusal,
 container isolation, and telemetry/relay/Portal state. It never installs,
 upgrades, uninstalls, reboots, changes accounts, or changes outbound settings.
@@ -11,6 +13,8 @@ Run only against a device authorized for a brief Ovis outage. Other Ovis clients
 will disconnect during stop/start. Existing workspaces are left alone. The suite
 creates a uniquely named directory in the container's data volume and a workspace
 using that directory; its final case removes those fixtures and leaves Ovis running.
+Cleanup does not resend a start request that may still be pending in DSM. An
+unresolved package operation is reported for operator recovery through Package Center.
 Nine cases run once, without case retries. Startup/reconnect predicates allow three
 minutes; individual browser actions allow the same budget. Shell typing waits for
 both terminal presentation and enabled input controls, then focuses xterm's input.

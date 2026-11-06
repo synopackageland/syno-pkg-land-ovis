@@ -56,5 +56,5 @@ test('the icon is drawn per size from icon_256.png down', () => {
 test('DSM storage uses an explicit local volume and one bounded tmpfs mount', () => {
   assert.equal(parse(compose).volumes.data.driver, 'local');
   assert.deepEqual(parse(compose).services.ovis.tmpfs,
-    ['/tmp:rw,nosuid,nodev,size=536870912,mode=1777']);
+    ['/tmp:rw,exec,nosuid,nodev,size=536870912,mode=1777']);
 });

@@ -1,6 +1,6 @@
 services:
   ovis:
-    image: ghcr.io/synopackageland/syno-pkg-land-ovis-runtime:0.4.22-0005@sha256:d7fe06be2bada2545708d88f1d4533011e60c629dd460215ffe2e97909464351
+    image: ghcr.io/synopackageland/syno-pkg-land-ovis-runtime:0.4.22-0006@sha256:89c4639f8a2606ce80b860a81db1e47592f045b1d1407b3f91e4e23160f0d2c2
     entrypoint: [/opt/ovis/ovis-launch]
     read_only: true
     cap_drop: [ALL]
@@ -18,7 +18,7 @@ services:
       NPM_CONFIG_PREFIX: /data/home/.local
       PATH: /data/home/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     volumes: [data:/data]
-    tmpfs: ["/tmp:rw,nosuid,nodev,size=536870912,mode=1777"]
+    tmpfs: ["/tmp:rw,exec,nosuid,nodev,size=536870912,mode=1777"]
     mem_limit: 2g
     cpu_shares: 512
     restart: unless-stopped
