@@ -12,7 +12,8 @@ will disconnect during stop/start. Existing workspaces are left alone. The suite
 creates a uniquely named directory in the container's data volume and a workspace
 using that directory; its final case removes those fixtures and leaves Ovis running.
 Nine cases run once, without case retries. Startup/reconnect predicates allow three
-minutes; individual browser actions allow the same budget.
+minutes; individual browser actions allow the same budget. Shell typing waits for
+both terminal presentation and enabled input controls, then focuses xterm's input.
 
 ## Setup
 
@@ -52,6 +53,12 @@ export OVIS_E2E_OUTPUT="<private-evidence-directory>"
 npm --prefix synology run e2e:nas
 ```
 
+For an explicitly authorized focused rerun, set
+`OVIS_E2E_FOCUS=shell-persistence`. This runs only `shell-command`,
+`restart-persistence`, and `cleanup-and-running`. Installed-version verification
+and administrator sign-in are setup only; the other six cases are not executed.
+Use a new evidence directory so the original run remains intact.
+
 The default imports resolve `playwright` and `@synology-vincentt/e2e-clef/dsm`
 from the runner's environment. To reuse separately installed or locally built
 dependencies, set `OVIS_E2E_PLAYWRIGHT_MODULE` to Playwright's `index.mjs` and
@@ -63,7 +70,8 @@ host/container; supply any SSH tunnel or proxy in that environment before starti
 ## Evidence and failure recovery
 
 `results.json` contains each case's outcome, selected safe readback and screenshot
-filenames. Screenshots include only the Ovis menu icon, the refusal explanation,
+filenames. `terminal.txt` records only the fixture pane's harmless command output.
+Screenshots include only the Ovis menu icon, the refusal explanation,
 and this run's terminal canvas. Credentials, browser traces, storage state,
 HTTP bodies and other people's terminal/sidebar contents are not recorded.
 Keep the whole evidence directory private and outside Git.

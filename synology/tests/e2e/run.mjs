@@ -9,6 +9,10 @@ import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
 const run = promisify(execFile);
+assert.ok(!process.env.OVIS_E2E_FOCUS || process.env.OVIS_E2E_FOCUS === 'shell-persistence',
+  'OVIS_E2E_FOCUS supports only shell-persistence');
+const focused = process.env.OVIS_E2E_FOCUS === 'shell-persistence';
+const focusedCases = new Set(['shell-command', 'restart-persistence', 'cleanup-and-running']);
 const configPath = process.env.OVIS_E2E_CONFIG;
 assert.ok(configPath, 'Set OVIS_E2E_CONFIG to a private JSON file');
 assert.equal((await stat(configPath)).mode & 0o077, 0, 'Configuration must be mode 600');
@@ -111,7 +115,19 @@ async function shot(name) {
   // Capture only this run's terminal; never capture other people's terminal/sidebar state.
   await app.locator('.xterm-screen:visible').screenshot({ path: join(evidence, name) });
 }
+async function terminalReady() {
+  await app.getByRole('button', { name: 'Terminal', exact: true }).click();
+  await app.locator('.terminal-stack[data-pane-content]').waitFor({ state: 'visible' });
+  // The key bar is CSS-hidden on desktops; its disabled state still tracks input readiness.
+  const key = app.getByRole('group', { name: 'Terminal keys', exact: true, includeHidden: true })
+    .getByRole('button', { includeHidden: true }).first();
+  await until(() => key.isEnabled(), Boolean, 'Terminal input is not ready');
+  const input = app.locator('.pane-terminal .xterm-helper-textarea');
+  await input.focus();
+  return input;
+}
 async function check(name, action) {
+  if (focused && !focusedCases.has(name)) return;
   stage = name;
   try {
     const detail = await action();
@@ -126,6 +142,11 @@ async function check(name, action) {
 }
 
 try {
+  if (focused) {
+    stage = 'setup:installed-version';
+    assert.equal(await ssh(`${packageCLI} version Ovis`), config.expectedVersion);
+    assert.equal(JSON.parse(await ssh(`${packageCLI} status Ovis`)).status, 'running');
+  }
   await check('installed-version', async () => {
     const version = await ssh(`${packageCLI} version Ovis`);
     assert.equal(version, config.expectedVersion, 'Unexpected installed version; no installation attempted');
@@ -134,11 +155,21 @@ try {
     return { version, status: state.status };
   });
   // Version mismatch must not lead to mutations against an unintended package generation.
-  assert.equal(results[0].status, 'pass', 'Installed-version prerequisite failed');
+  if (!focused) assert.equal(results[0].status, 'pass', 'Installed-version prerequisite failed');
   browser = await chromium.launch({
     ...(process.env.OVIS_E2E_BROWSER ? { executablePath: process.env.OVIS_E2E_BROWSER } : {}),
     args: ['--no-sandbox'],
   });
+  if (focused) {
+    stage = 'setup:administrator-login';
+    const { context, page } = await login('admin');
+    adminContext = context;
+    app = page;
+    await app.goto(new URL('/webman/3rdparty/Ovis/sso/open.cgi', config.dsmUrl).href);
+    await app.waitForURL(url => url.origin === new URL(config.appUrl).origin, { timeout: 180_000 });
+    await app.waitForLoadState('domcontentloaded');
+    await until(() => api('/api/health'), value => value.ok && value.herdr, 'Herdr startup did not complete');
+  }
   await check('admin-main-menu', async () => {
     const { context, page } = await login('admin');
     adminContext = context;
@@ -234,16 +265,17 @@ try {
     stage = 'shell-command:terminal-ready';
     const screen = app.locator('.xterm-screen:visible');
     await screen.waitFor({ timeout: 180_000 });
-    await screen.click();
+    const input = await terminalReady();
     // Split the expected output so command echo alone cannot satisfy readback.
     const command = `printf '%s%s\\n' 'terminal-ok-' '${fixture}'; node -v; printf '%s' '${fixture}' > marker`;
-    await app.keyboard.type(command);
-    await app.keyboard.press('Enter');
+    await input.pressSequentially(command);
+    await input.press('Enter');
     stage = 'shell-command:output-readback';
     const read = await until(() => api(`/api/pane/read?pane_id=${encodeURIComponent(paneId)}&source=visible&format=text`),
       value => value.read?.text.includes(`terminal-ok-${fixture}`) && /v22\.\d+\.\d+/.test(value.read.text),
       'Shell output not observed');
     assert.equal(await container(`cat ${quote(`${fixtureDir}/marker`)}`), fixture);
+    await writeFile(join(evidence, 'terminal.txt'), read.read.text, { mode: 0o600 });
     await shot('terminal.png');
     return { echoOutput: true, nodeVersion: read.read.text.match(/v22\.\d+\.\d+/)[0], marker: true, screenshot: 'terminal.png' };
   });
@@ -265,7 +297,7 @@ try {
     const { snapshot } = await api('/api/session');
     assert.ok(snapshot.workspaces.some(workspace => workspace.workspace_id === workspaceId), 'Workspace ID was not restored');
     await app.getByText(fixture, { exact: true }).first().click();
-    await app.locator('.xterm-screen:visible').waitFor({ timeout: 180_000 });
+    await terminalReady();
     await shot('after-restart.png');
     const off = await servicesOff();
     return { markerRetained: true, workspaceIdRetained: true, containerRestarted: true, ...off, screenshot: 'after-restart.png' };
