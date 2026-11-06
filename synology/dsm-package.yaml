@@ -6,7 +6,7 @@
 schema: 2
 
 package: Ovis
-version: 0.1.0
+version: 0.4.22
 # The build resets to 1 with every upstream release (INFO <upstream>-0001).
 build: 1
 displayname: Ovis
