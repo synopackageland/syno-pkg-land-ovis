@@ -8,6 +8,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import { createDiagnostics } from './diagnostics.mjs';
+import { fixtureWorkspaceControl } from './workspace-control.mjs';
 
 const run = promisify(execFile);
 assert.ok(!process.env.OVIS_E2E_FOCUS || process.env.OVIS_E2E_FOCUS === 'shell-persistence',
@@ -357,8 +358,8 @@ try {
     const { snapshot } = await step('restart:session', 'GET /api/session', () => api('/api/session'));
     await step('restart:workspace-retained', 'snapshot workspace ID', async () =>
       assert.ok(snapshot.workspaces.some(workspace => workspace.workspace_id === workspaceId), 'Workspace ID was not restored'));
-    const row = app.getByText(fixture, { exact: true }).first();
-    await step('restart:select-workspace', 'getByText(<fixture>, exact).first()',
+    const row = fixtureWorkspaceControl(app, fixture);
+    await step('restart:select-workspace', '.sidebar .workspace-select (exact fixture label)',
       () => row.click(), { target: row });
     await terminalReady('restart');
     await step('restart:terminal-screenshot', '.xterm-screen:visible', () => shot('after-restart.png'),
