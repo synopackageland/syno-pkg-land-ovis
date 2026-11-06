@@ -4,7 +4,8 @@
   "scripts": {
     "test": "npm run test:unit",
     "test:unit": "node --test tests/local/ovis-manifest.test.mjs tests/local/ovis-admin-only.test.mjs",
-    "test:local": "node --test tests/local/*.test.mjs"
+    "test:local": "node --test tests/local/*.test.mjs",
+    "e2e:nas": "node tests/e2e/run.mjs"
   },
   "devDependencies": {
     "@synopackageland/cli": "0.48.24"
