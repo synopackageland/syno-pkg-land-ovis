@@ -7,6 +7,7 @@ import { resolve, join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
+import { createDiagnostics } from './diagnostics.mjs';
 
 const run = promisify(execFile);
 assert.ok(!process.env.OVIS_E2E_FOCUS || process.env.OVIS_E2E_FOCUS === 'shell-persistence',
@@ -44,7 +45,8 @@ const results = [];
 let browser, adminContext, app, workspaceId, paneId, directoryCreated = false;
 let restartAttempted = false;
 let startAttempted = false;
-let stage = '';
+const diagnostics = createDiagnostics({ evidence, page: () => app });
+const { mark, step } = diagnostics;
 const quote = value => `'${value.replaceAll("'", "'\\''")}'`;
 
 // Discard SSH diagnostics: credentials, hostnames and remote paths never enter results.
@@ -53,7 +55,7 @@ async function ssh(command) {
     return (await run('ssh', ['-o', 'BatchMode=yes', '-o', 'LogLevel=ERROR',
       '-o', 'ConnectTimeout=15', config.sshTarget, command],
     { timeout: 300_000, maxBuffer: 2 * 1024 * 1024 })).stdout.trim();
-  } catch { throw new Error(`Remote operation failed at ${stage}`); }
+  } catch { throw new Error(`Remote operation failed at ${diagnostics.current.stage}`); }
 }
 const container = args => ssh(`${docker} exec ${quote(config.containerName)} ${args}`);
 async function until(read, predicate, message) {
@@ -76,78 +78,102 @@ async function api(path, body) {
   assert.equal(result.status, 200, `App request failed: ${path}`);
   return result.value;
 }
-async function reopenFromDSM() {
+async function reopenFromDSM(prefix) {
   // A gateway restart can invalidate its browser session. Re-enter with the
   // retained DSM session before checking the App's persistent data.
-  await until(async () => {
+  await step(`${prefix}:dsm-entry`, 'goto DSM entry; waitForURL(app origin)', () => until(async () => {
+    await mark(`${prefix}:dsm-entry:navigate`, 'goto /webman/3rdparty/Ovis/sso/open.cgi');
     await app.goto(new URL('/webman/3rdparty/Ovis/sso/open.cgi', config.dsmUrl).href,
       { timeout: 15_000, waitUntil: 'domcontentloaded' });
+    await mark(`${prefix}:dsm-entry:app-origin`, 'waitForURL(app origin)');
     await app.waitForURL(url => url.origin === new URL(config.appUrl).origin, { timeout: 15_000 });
     return true;
-  }, Boolean, 'DSM entry did not recover');
+  }, Boolean, 'DSM entry did not recover'));
 }
 async function login(role) {
   const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 1000 } });
   context.setDefaultTimeout(180_000);
   context.setDefaultNavigationTimeout(180_000);
+  const page = await context.newPage();
   try {
-    const page = await context.newPage();
-    await page.goto(config.dsmUrl);
-    await page.locator('input[name="username"]').fill(config[role].username);
-    await page.keyboard.press('Enter');
+    await step(`login:${role}:navigate`, 'goto DSM', () => page.goto(config.dsmUrl), { page });
+    await step(`login:${role}:username`, 'input[name=username]',
+      () => page.locator('input[name="username"]').fill(config[role].username), { page });
+    await step(`login:${role}:next`, 'keyboard Enter', () => page.keyboard.press('Enter'), { page });
     const password = page.locator('input[type="password"]:visible');
-    await password.fill(config[role].password);
-    await password.press('Enter');
-    await page.locator('#sds-desktop').waitFor({ state: 'visible', timeout: 180_000 });
-    await page.locator('#sds-taskbar-tray-item-user').waitFor();
+    await step(`login:${role}:password`, 'input[type=password]:visible',
+      () => password.fill(config[role].password), { page });
+    await step(`login:${role}:submit`, 'password Enter', () => password.press('Enter'), { page });
+    await step(`login:${role}:desktop`, '#sds-desktop',
+      () => page.locator('#sds-desktop').waitFor({ state: 'visible', timeout: 180_000 }), { page, target: page.locator('#sds-desktop') });
+    await step(`login:${role}:user-menu`, '#sds-taskbar-tray-item-user',
+      () => page.locator('#sds-taskbar-tray-item-user').waitFor(), { page });
     // Reuse Clef's read-only DSM bootstrap/desktop semantics; no model or AI key needed.
     const adapter = dsmAdapter({ startupWaitMs: 60_000 });
-    const snapshot = await until(() => adapter.observe(page, {
+    const snapshot = await step(`login:${role}:clef-desktop`, 'Clef desktopReady', () => until(() => adapter.observe(page, {
       revision: 'desktop', viewport: { width: 1440, height: 1000 }, text: '',
       truncated: false, tree: { id: 'root', role: 'document', children: [] },
-    }), value => value.desktopReady === true, 'Clef did not confirm DSM desktop readiness');
+    }), value => value.desktopReady === true, 'Clef did not confirm DSM desktop readiness'), { page });
     assert.equal(snapshot.desktopReady, true, 'Clef did not confirm DSM desktop readiness');
     return { context, page };
-  } catch (error) { await context.close(); throw error; }
+  } catch (error) { await diagnostics.failure(error, page); await context.close(); throw error; }
 }
-async function servicesOff() {
-  const telemetry = await api('/api/telemetry');
-  const relay = await api('/api/relay');
-  const portal = await api('/api/portal');
-  assert.equal(telemetry.enabled, false, 'Telemetry is enabled');
-  assert.equal(relay.phase, 'off', 'Relay is not off');
-  assert.equal(relay.sessions, 0, 'Relay sessions exist');
-  assert.equal(relay.blocked, 'serve_only', 'Relay guard is not configured');
-  assert.equal(portal.phase, 'idle', 'Portal is not idle');
-  const policy = await container("sh -c 'test \"$OVIS_TAILSCALE_SERVE_ONLY\" = 1 && test -f \"$OVIS_STATE_DIR/telemetry-off\" && echo off'");
-  assert.equal(policy, 'off', 'Runtime guard/telemetry marker missing');
+async function servicesOff(prefix = 'services-off') {
+  const telemetry = await step(`${prefix}:telemetry`, 'GET /api/telemetry', () => api('/api/telemetry'));
+  const relay = await step(`${prefix}:relay`, 'GET /api/relay', () => api('/api/relay'));
+  const portal = await step(`${prefix}:portal`, 'GET /api/portal', () => api('/api/portal'));
+  await step(`${prefix}:policy-assertions`, 'telemetry/relay/portal policy', async () => {
+    assert.equal(telemetry.enabled, false, 'Telemetry is enabled');
+    assert.equal(relay.phase, 'off', 'Relay is not off');
+    assert.equal(relay.sessions, 0, 'Relay sessions exist');
+    assert.equal(relay.blocked, 'serve_only', 'Relay guard is not configured');
+    assert.equal(portal.phase, 'idle', 'Portal is not idle');
+  });
+  const policy = await step(`${prefix}:runtime-guard`, 'owned runtime guard readback', () =>
+    container("sh -c 'test \"$OVIS_TAILSCALE_SERVE_ONLY\" = 1 && test -f \"$OVIS_STATE_DIR/telemetry-off\" && echo off'"));
+  await step(`${prefix}:guard-assertion`, 'runtime guard off', async () =>
+    assert.equal(policy, 'off', 'Runtime guard/telemetry marker missing'));
   return { telemetry: 'off', relay: 'off', portal: 'idle', guard: 'serve_only' };
+}
+async function profileState(prefix) {
+  const path = `/var/packages/ContainerManager/etc/${config.containerName}.config`;
+  return step(`${prefix}:container-profile`, 'owned Container Manager profile metadata only', async () => {
+    const containerProfile = await ssh(`if test -f ${quote(path)}; then echo present; else echo absent; fi`);
+    await diagnostics.observe({ containerProfile });
+    return containerProfile;
+  });
 }
 async function shot(name) {
   // Capture only this run's terminal; never capture other people's terminal/sidebar state.
   await app.locator('.xterm-screen:visible').screenshot({ path: join(evidence, name) });
 }
-async function terminalReady() {
-  await app.getByRole('button', { name: 'Terminal', exact: true }).click();
-  await app.locator('.terminal-stack[data-pane-content]').waitFor({ state: 'visible' });
+async function terminalReady(prefix) {
+  const button = app.getByRole('button', { name: 'Terminal', exact: true });
+  await step(`${prefix}:terminal-button`, 'getByRole(button, Terminal, exact)',
+    () => button.click(), { target: button });
+  const stack = app.locator('.terminal-stack[data-pane-content]');
+  await step(`${prefix}:terminal-presentation`, '.terminal-stack[data-pane-content]',
+    () => stack.waitFor({ state: 'visible' }), { target: stack });
   // The key bar is CSS-hidden on desktops; its disabled state still tracks input readiness.
   const key = app.getByRole('group', { name: 'Terminal keys', exact: true, includeHidden: true })
     .getByRole('button', { includeHidden: true }).first();
-  await until(() => key.isEnabled(), Boolean, 'Terminal input is not ready');
+  await step(`${prefix}:terminal-input-ready`, 'Terminal keys > first button (includeHidden)',
+    () => until(() => key.isEnabled(), Boolean, 'Terminal input is not ready'), { target: key });
   const input = app.locator('.pane-terminal .xterm-helper-textarea');
-  await input.focus();
+  await step(`${prefix}:terminal-focus`, '.pane-terminal .xterm-helper-textarea',
+    () => input.focus(), { target: input });
   return input;
 }
 async function check(name, action) {
   if (focused && !focusedCases.has(name)) return;
-  stage = name;
+  await mark(name);
   try {
     const detail = await action();
     results.push({ name, status: 'pass', detail });
     console.log(`PASS ${name}`);
   } catch (error) {
     // Assertion/Playwright errors may contain account, URL, file or DOM values.
-    results.push({ name, status: 'fail', detail: { stage, kind: error.name } });
+    results.push({ name, status: 'fail', detail: await diagnostics.failure(error) });
     console.log(`FAIL ${name} (${error.name})`);
   }
   await writeFile(join(evidence, 'results.json'), JSON.stringify({ fixture, results }, null, 2), { mode: 0o600 });
@@ -155,9 +181,10 @@ async function check(name, action) {
 
 try {
   if (focused) {
-    stage = 'setup:installed-version';
-    assert.equal(await ssh(`${packageCLI} version Ovis`), config.expectedVersion);
-    assert.equal(JSON.parse(await ssh(`${packageCLI} status Ovis`)).status, 'running');
+    await step('setup:installed-version', 'synopkg version Ovis', async () =>
+      assert.equal(await ssh(`${packageCLI} version Ovis`), config.expectedVersion));
+    await step('setup:package-running', 'synopkg status Ovis', async () =>
+      assert.equal(JSON.parse(await ssh(`${packageCLI} status Ovis`)).status, 'running'));
   }
   await check('installed-version', async () => {
     const version = await ssh(`${packageCLI} version Ovis`);
@@ -168,19 +195,22 @@ try {
   });
   // Version mismatch must not lead to mutations against an unintended package generation.
   if (!focused) assert.equal(results[0].status, 'pass', 'Installed-version prerequisite failed');
-  browser = await chromium.launch({
+  browser = await step('setup:browser-launch', null, () => chromium.launch({
     ...(process.env.OVIS_E2E_BROWSER ? { executablePath: process.env.OVIS_E2E_BROWSER } : {}),
     args: ['--no-sandbox'],
-  });
+  }));
   if (focused) {
-    stage = 'setup:administrator-login';
+    await mark('setup:administrator-login');
     const { context, page } = await login('admin');
     adminContext = context;
     app = page;
-    await app.goto(new URL('/webman/3rdparty/Ovis/sso/open.cgi', config.dsmUrl).href);
-    await app.waitForURL(url => url.origin === new URL(config.appUrl).origin, { timeout: 180_000 });
-    await app.waitForLoadState('domcontentloaded');
-    await until(() => api('/api/health'), value => value.ok && value.herdr, 'Herdr startup did not complete');
+    await step('setup:app-entry', 'goto DSM Ovis entry',
+      () => app.goto(new URL('/webman/3rdparty/Ovis/sso/open.cgi', config.dsmUrl).href));
+    await step('setup:app-origin', 'waitForURL(app origin)',
+      () => app.waitForURL(url => url.origin === new URL(config.appUrl).origin, { timeout: 180_000 }));
+    await step('setup:app-dom', 'domcontentloaded', () => app.waitForLoadState('domcontentloaded'));
+    await step('setup:herdr-health', 'GET /api/health: ok + herdr',
+      () => until(() => api('/api/health'), value => value.ok && value.herdr, 'Herdr startup did not complete'));
   }
   await check('admin-main-menu', async () => {
     const { context, page } = await login('admin');
@@ -192,8 +222,9 @@ try {
     const opened = context.waitForEvent('page');
     await icon.dblclick();
     app = await opened;
-    await app.waitForURL(url => url.origin === new URL(config.appUrl).origin, { timeout: 180_000 });
-    await app.waitForLoadState('domcontentloaded');
+    await step('setup:app-origin', 'waitForURL(app origin)',
+      () => app.waitForURL(url => url.origin === new URL(config.appUrl).origin, { timeout: 180_000 }));
+    await step('setup:app-dom', 'domcontentloaded', () => app.waitForLoadState('domcontentloaded'));
     await app.getByRole('button', { name: 'New workspace', exact: true }).waitFor();
     const health = await until(() => api('/api/health'), value => value.ok && value.herdr,
       'Herdr startup did not complete');
@@ -253,31 +284,28 @@ try {
   });
   await check('services-off', servicesOff);
   await check('shell-command', async () => {
-    assert.ok(app, 'Administrator entry prerequisite failed');
-    await container(`mkdir ${quote(fixtureDir)}`);
+    await step('shell:app-prerequisite', null, async () => assert.ok(app, 'Administrator entry prerequisite failed'));
+    await step('shell:create-directory', 'owned fixture mkdir', () => container(`mkdir ${quote(fixtureDir)}`));
     directoryCreated = true;
-    stage = 'shell-command:open-dialog';
-    await app.getByRole('button', { name: 'New workspace', exact: true }).click();
+    await step('shell:open-dialog', 'getByRole(button, New workspace, exact)',
+      () => app.getByRole('button', { name: 'New workspace', exact: true }).click());
     const dialog = app.getByRole('dialog');
-    stage = 'shell-command:select-shell';
-    await dialog.getByRole('combobox').click();
-    await app.getByRole('option', { name: 'Shell', exact: true }).click();
-    stage = 'shell-command:directory-field';
-    await dialog.getByLabel('Directory', { exact: true }).fill(fixtureDir);
-    stage = 'shell-command:name-field';
-    await dialog.getByRole('textbox', { name: /^Name/ }).fill(fixture);
-    stage = 'shell-command:create-workspace';
+    await step('shell:agent-selector', 'dialog combobox', () => dialog.getByRole('combobox').click());
+    await step('shell:select-shell', 'option Shell', () => app.getByRole('option', { name: 'Shell', exact: true }).click());
+    await step('shell:directory-field', 'dialog Directory', () => dialog.getByLabel('Directory', { exact: true }).fill(fixtureDir));
+    await step('shell:name-field', 'dialog Name', () => dialog.getByRole('textbox', { name: /^Name/ }).fill(fixture));
     const created = app.waitForResponse(response => new URL(response.url()).pathname === '/api/workspace/create'
       && response.request().method() === 'POST');
-    await dialog.getByRole('button', { name: 'Start', exact: true }).click();
-    const response = await created;
-    assert.equal(response.status(), 200, 'Workspace creation failed');
-    ({ workspace_id: workspaceId, pane_id: paneId } = await response.json());
-    assert.ok(workspaceId && paneId, 'Workspace/pane IDs missing');
-    stage = 'shell-command:terminal-ready';
+    await step('shell:start-workspace', 'dialog Start', () => dialog.getByRole('button', { name: 'Start', exact: true }).click());
+    const response = await step('shell:create-response', 'POST /api/workspace/create', () => created);
+    await step('shell:workspace-created', 'created workspace/pane IDs', async () => {
+      assert.equal(response.status(), 200, 'Workspace creation failed');
+      ({ workspace_id: workspaceId, pane_id: paneId } = await response.json());
+      assert.ok(workspaceId && paneId, 'Workspace/pane IDs missing');
+    });
     const screen = app.locator('.xterm-screen:visible');
-    await screen.waitFor({ timeout: 180_000 });
-    const input = await terminalReady();
+    await step('shell:screen-visible', '.xterm-screen:visible', () => screen.waitFor({ timeout: 180_000 }), { target: screen });
+    const input = await terminalReady('shell');
     // Split the expected output so command echo alone cannot satisfy readback.
     const tools = ['bash', 'git', 'ssh', 'curl', 'jq', 'rg', 'fd', 'python', 'python3', 'pip3', 'sqlite3'];
     const toolCheck = `(set -e; for tool in ${tools.join(' ')}; do command -v "$tool" >/dev/null; done; `
@@ -287,72 +315,96 @@ try {
       + `pip3 --version >/dev/null; test "$(sqlite3 :memory: 'select 1;')" = 1; `
       + `printf '%s%s\\n' 'tools-ok-' '${fixture}')`;
     const command = `${toolCheck}; printf '%s%s\\n' 'terminal-ok-' '${fixture}'; node -v; printf '%s' '${fixture}' > marker`;
-    await input.pressSequentially(command);
-    await input.press('Enter');
-    stage = 'shell-command:output-readback';
-    const read = await until(() => api(`/api/pane/read?pane_id=${encodeURIComponent(paneId)}&source=visible&format=text`),
+    await step('shell:type-command', '.xterm-helper-textarea (fixture command)', () => input.pressSequentially(command));
+    await step('shell:send-command', '.xterm-helper-textarea Enter', () => input.press('Enter'));
+    const read = await step('shell:output-readback', 'GET /api/pane/read: fixture output', () => until(() => api(`/api/pane/read?pane_id=${encodeURIComponent(paneId)}&source=visible&format=text`),
       value => value.read?.text.includes(`terminal-ok-${fixture}`)
         && value.read.text.includes(`tools-ok-${fixture}`) && /v22\.\d+\.\d+/.test(value.read.text),
-      'Shell output not observed');
-    assert.equal(await container(`cat ${quote(`${fixtureDir}/marker`)}`), fixture);
+      'Shell output not observed'));
+    await step('shell:marker-readback', 'owned marker readback', async () =>
+      assert.equal(await container(`cat ${quote(`${fixtureDir}/marker`)}`), fixture));
     await writeFile(join(evidence, 'terminal.txt'), read.read.text, { mode: 0o600 });
-    await shot('terminal.png');
+    await step('shell:terminal-screenshot', '.xterm-screen:visible', () => shot('terminal.png'));
     return { echoOutput: true, runtimeTools: tools, toolsExecuted: true, nodeVersion: read.read.text.match(/v22\.\d+\.\d+/)[0], marker: true, screenshot: 'terminal.png' };
   });
   await check('restart-persistence', async () => {
-    assert.ok(workspaceId && paneId && directoryCreated, 'Shell fixture prerequisite failed');
-    assert.equal(await container(`cat ${quote(`${fixtureDir}/marker`)}`), fixture);
-    const oldStarted = await ssh(`${docker} inspect --format '{{.State.StartedAt}}' ${quote(config.containerName)}`);
+    await step('restart:fixture-prerequisite', null, async () =>
+      assert.ok(workspaceId && paneId && directoryCreated, 'Shell fixture prerequisite failed'));
+    await step('restart:marker-before', 'owned marker readback', async () =>
+      assert.equal(await container(`cat ${quote(`${fixtureDir}/marker`)}`), fixture));
+    const oldStarted = await step('restart:container-before', 'docker inspect State.StartedAt', () =>
+      ssh(`${docker} inspect --format '{{.State.StartedAt}}' ${quote(config.containerName)}`));
+    const profileBefore = await profileState('restart:before');
     restartAttempted = true;
-    await ssh(`${packageCLI} stop Ovis`);
-    assert.notEqual(JSON.parse(await ssh(`${packageCLI} status Ovis || :`)).status, 'running');
+    await step('restart:stop', 'synopkg stop Ovis (once)', () => ssh(`${packageCLI} stop Ovis`));
+    await step('restart:stopped', 'synopkg status Ovis', async () =>
+      assert.notEqual(JSON.parse(await ssh(`${packageCLI} status Ovis || :`)).status, 'running'));
     startAttempted = true;
-    await ssh(`${packageCLI} start Ovis`);
-    await until(async () => JSON.parse(await ssh(`${packageCLI} status Ovis`)), value => value.status === 'running',
-      'Package did not restart');
-    const newStarted = await ssh(`${docker} inspect --format '{{.State.StartedAt}}' ${quote(config.containerName)}`);
-    assert.notEqual(newStarted, oldStarted, 'Container did not restart');
-    await reopenFromDSM();
-    await until(() => api('/api/health'), value => value.ok && value.herdr, 'Herdr did not recover');
-    assert.equal(await container(`cat ${quote(`${fixtureDir}/marker`)}`), fixture);
-    const { snapshot } = await api('/api/session');
-    assert.ok(snapshot.workspaces.some(workspace => workspace.workspace_id === workspaceId), 'Workspace ID was not restored');
-    await app.getByText(fixture, { exact: true }).first().click();
-    await terminalReady();
-    await shot('after-restart.png');
-    const off = await servicesOff();
-    return { markerRetained: true, workspaceIdRetained: true, containerRestarted: true, ...off, screenshot: 'after-restart.png' };
+    await step('restart:start', 'synopkg start Ovis (once)', () => ssh(`${packageCLI} start Ovis`));
+    await step('restart:running', 'synopkg status Ovis: running', () =>
+      until(async () => JSON.parse(await ssh(`${packageCLI} status Ovis`)), value => value.status === 'running',
+        'Package did not restart'));
+    const profileAfter = await profileState('restart:after');
+    const newStarted = await step('restart:container-after', 'docker inspect State.StartedAt', () =>
+      ssh(`${docker} inspect --format '{{.State.StartedAt}}' ${quote(config.containerName)}`));
+    await step('restart:container-changed', null, async () =>
+      assert.notEqual(newStarted, oldStarted, 'Container did not restart'));
+    await reopenFromDSM('restart');
+    await step('restart:herdr-health', 'GET /api/health: ok + herdr', () =>
+      until(() => api('/api/health'), value => value.ok && value.herdr, 'Herdr did not recover'));
+    await step('restart:marker-after', 'owned marker readback', async () =>
+      assert.equal(await container(`cat ${quote(`${fixtureDir}/marker`)}`), fixture));
+    const { snapshot } = await step('restart:session', 'GET /api/session', () => api('/api/session'));
+    await step('restart:workspace-retained', 'snapshot workspace ID', async () =>
+      assert.ok(snapshot.workspaces.some(workspace => workspace.workspace_id === workspaceId), 'Workspace ID was not restored'));
+    const row = app.getByText(fixture, { exact: true }).first();
+    await step('restart:select-workspace', 'getByText(<fixture>, exact).first()',
+      () => row.click(), { target: row });
+    await terminalReady('restart');
+    await step('restart:terminal-screenshot', '.xterm-screen:visible', () => shot('after-restart.png'),
+      { target: app.locator('.xterm-screen:visible') });
+    const off = await servicesOff('restart:services-off');
+    return { markerRetained: true, workspaceIdRetained: true, containerRestarted: true, profileBefore, profileAfter, ...off, screenshot: 'after-restart.png' };
   });
 } catch (error) {
-  results.push({ name: 'prerequisite', status: 'fail', detail: { stage, kind: error.name } });
+  results.push({ name: 'prerequisite', status: 'fail', detail: await diagnostics.failure(error) });
 } finally {
   await check('cleanup-and-running', async () => {
     // Restore after a stop only if no start was sent; an attempted start may
     // still be pending in DSM even after the client has timed out.
     if (restartAttempted && !startAttempted) {
-      const state = JSON.parse(await ssh(`${packageCLI} status Ovis || :`));
+      const state = await step('cleanup:restore-status', 'synopkg status Ovis', async () =>
+        JSON.parse(await ssh(`${packageCLI} status Ovis || :`)));
       if (['stop', 'stopped'].includes(state.status)) {
         startAttempted = true;
-        await ssh(`${packageCLI} start Ovis`);
+        await step('cleanup:restore-start', 'synopkg start Ovis (only if never sent)', () => ssh(`${packageCLI} start Ovis`));
       }
     }
-    await until(async () => JSON.parse(await ssh(`${packageCLI} status Ovis`)), value => value.status === 'running',
-      'Package is not running after cleanup');
+    await step('cleanup:running', 'synopkg status Ovis: running', () =>
+      until(async () => JSON.parse(await ssh(`${packageCLI} status Ovis`)), value => value.status === 'running',
+        'Package is not running after cleanup'));
     if (workspaceId) {
-      await reopenFromDSM();
-      await until(() => api('/api/health'), value => value.ok && value.herdr, 'Cleanup connection unavailable');
-      const { snapshot } = await api('/api/session');
+      await reopenFromDSM('cleanup');
+      await step('cleanup:health', 'GET /api/health: ok + herdr', () =>
+        until(() => api('/api/health'), value => value.ok && value.herdr, 'Cleanup connection unavailable'));
+      const { snapshot } = await step('cleanup:session', 'GET /api/session', () => api('/api/session'));
       const own = snapshot.workspaces.find(workspace => workspace.workspace_id === workspaceId);
-      assert.ok(own && own.label === fixture, 'Refuse to close an unowned workspace');
-      await api('/api/workspace/close', { workspace_id: workspaceId });
-      await until(() => api('/api/session'), value => !value.snapshot.workspaces.some(workspace => workspace.workspace_id === workspaceId),
-        'Fixture workspace was not removed');
+      await step('cleanup:owned-workspace', 'workspace ID and fixture label', async () =>
+        assert.ok(own && own.label === fixture, 'Refuse to close an unowned workspace'));
+      await step('cleanup:close-workspace', 'POST /api/workspace/close (owned ID)', () =>
+        api('/api/workspace/close', { workspace_id: workspaceId }));
+      await step('cleanup:workspace-removed', 'GET /api/session: owned ID absent', () =>
+        until(() => api('/api/session'), value => !value.snapshot.workspaces.some(workspace => workspace.workspace_id === workspaceId),
+          'Fixture workspace was not removed'));
     }
     if (directoryCreated) {
-      await container(`sh -c ${quote(`rm -f ${quote(`${fixtureDir}/marker`)} && rmdir ${quote(fixtureDir)}`)}`);
-      assert.equal(await container(`sh -c ${quote(`test ! -e ${quote(fixtureDir)} && echo removed`)}`), 'removed');
+      await step('cleanup:remove-directory', 'owned marker rm + fixture rmdir', () =>
+        container(`sh -c ${quote(`rm -f ${quote(`${fixtureDir}/marker`)} && rmdir ${quote(fixtureDir)}`)}`));
+      await step('cleanup:directory-absent', 'owned directory absence', async () =>
+        assert.equal(await container(`sh -c ${quote(`test ! -e ${quote(fixtureDir)} && echo removed`)}`), 'removed'));
     }
-    return { workspaceRemoved: !!workspaceId, fixtureRemoved: directoryCreated, packageRunning: true };
+    const containerProfile = await profileState('cleanup:final');
+    return { workspaceRemoved: !!workspaceId, fixtureRemoved: directoryCreated, packageRunning: true, containerProfile };
   });
   await adminContext?.close();
   await browser?.close();

@@ -76,7 +76,19 @@ host/container; supply any SSH tunnel or proxy in that environment before starti
 ## Evidence and failure recovery
 
 `results.json` contains each case's outcome, selected safe readback and screenshot
-filenames. `terminal.txt` records only the fixture pane's harmless command output.
+filenames. `stages.jsonl` durably records each focused setup, shell, restart and
+cleanup substep with its time, stage and static locator description. Container
+profile presence is observed before/after restart and after cleanup; absence is
+recorded without repairing it or preventing the authorized start.
+
+On failure, `failure-N.json` retains the original stage, locator, URL with query,
+fragment and userinfo removed, and matching-element visibility when available.
+`failure-N.png` shows only fixed view controls and empty terminal structure;
+other workspaces, chats, input values and xterm output are hidden during capture.
+Screenshot failure is reported without replacing the original error. The same
+case is never retried, and cleanup cannot overwrite its failure evidence.
+Run `node --test synology/tests/e2e/diagnostics.test.mjs` from the repository
+root for the isolated diagnostic/privacy tests (no NAS access). `terminal.txt` records only the fixture pane's harmless command output.
 Screenshots include only the Ovis menu icon, the refusal explanation,
 and this run's terminal canvas. Credentials, browser traces, storage state,
 HTTP bodies and other people's terminal/sidebar contents are not recorded.
