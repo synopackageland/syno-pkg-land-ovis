@@ -18,7 +18,7 @@ services:
       NPM_CONFIG_PREFIX: /data/home/.local
       PATH: /data/home/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     volumes: [data:/data]
-    tmpfs: ["/tmp:rw,nosuid,nodev,size=536870912,mode=1777"]
+    tmpfs: ["/tmp:rw,exec,nosuid,nodev,size=536870912,mode=1777"]
     mem_limit: 2g
     cpu_shares: 512
     restart: unless-stopped

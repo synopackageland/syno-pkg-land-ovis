@@ -9,11 +9,20 @@ FROM public.ecr.aws/docker/library/node:22.23.4-bookworm-slim@sha256:5ec23b7c622
 FROM public.ecr.aws/docker/library/ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852
 ARG TARGETARCH
 # bash: panes/installers; git/openssh-client: repositories and remote PCs;
-# curl/CA: HTTPS installers; unzip/xz: common binary archives;
-# procps: agent process inspection. No compiler, daemon, sudo or Docker client.
-RUN sed -i 's/^Components:.*/Components: main/' /etc/apt/sources.list.d/ubuntu.sources \
+# curl/wget/CA: HTTPS downloads; unzip/xz/zip: release archives;
+# procps: process inspection; jq: JSON; ripgrep/fd-find: code/file searches;
+# less/file/tree: file inspection; rsync: incremental copies; nano: small editor;
+# python3/pip/venv: Python scripts and isolated pure-Python dependencies;
+# sqlite3: local databases; iputils-ping: network diagnostics.
+# universe supplies fd-find, ripgrep and Python tooling. No compiler, daemon,
+# sudo or Docker client. herdr already multiplexes panes, so tmux is redundant.
+RUN sed -i 's/^Components:.*/Components: main universe/' /etc/apt/sources.list.d/ubuntu.sources \
     && apt-get update && apt-get install -y --no-install-recommends \
     bash git openssh-client curl ca-certificates unzip xz-utils procps \
+    jq ripgrep fd-find less file tree zip rsync wget nano \
+    python3 python3-pip python3-venv sqlite3 iputils-ping \
+    && ln -s /usr/bin/fdfind /usr/local/bin/fd \
+    && ln -s /usr/bin/python3 /usr/local/bin/python \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=node /usr/local/lib/node_modules/npm/ /usr/local/lib/node_modules/npm/
