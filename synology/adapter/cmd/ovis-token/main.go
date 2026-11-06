@@ -11,12 +11,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"ovis-dsm-adapter/internal/token"
 )
 
 func main() {
-	out, err := reply(token.Path(os.Getenv))
+	out, err := reply(secretPath())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ovis-token: %v\n", err)
 		os.Exit(1)
@@ -36,4 +37,13 @@ func reply(path string) ([]byte, error) {
 		return nil, err
 	}
 	return append(out, '\n'), nil
+}
+
+// The SDK materializes the same private runtime seed that it injects into Ovis.
+func secretPath() string {
+	root := os.Getenv("SYNOPKG_PKGDEST")
+	if root == "" {
+		root = "/var/packages/Ovis/target"
+	}
+	return filepath.Join(root, "compose", "secrets", "runtime-ovis.secret")
 }

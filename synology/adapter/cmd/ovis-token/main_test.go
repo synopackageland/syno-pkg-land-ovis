@@ -32,3 +32,14 @@ func TestReplyRefusesMissingToken(t *testing.T) {
 		t.Fatal("a missing token produced credentials")
 	}
 }
+
+func TestSecretPathUsesInstalledComposeSeed(t *testing.T) {
+	t.Setenv("SYNOPKG_PKGDEST", "/opt/package")
+	if got := secretPath(); got != "/opt/package/compose/secrets/runtime-ovis.secret" {
+		t.Fatalf("secret path = %s", got)
+	}
+	t.Setenv("SYNOPKG_PKGDEST", "")
+	if got := secretPath(); got != "/var/packages/Ovis/target/compose/secrets/runtime-ovis.secret" {
+		t.Fatalf("fallback secret path = %s", got)
+	}
+}

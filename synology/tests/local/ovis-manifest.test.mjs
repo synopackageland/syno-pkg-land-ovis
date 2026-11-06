@@ -2,14 +2,17 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
+import {parse} from 'yaml';
 
 const manifest = readFileSync(new URL('../../dsm-package.yaml', import.meta.url), 'utf8');
+const compose = readFileSync(new URL('../../compose.yaml', import.meta.url), 'utf8');
 const line = (re) => assert.match(manifest, re);
 
-test('Ovis listens on loopback only, behind the DSM gateway', () => {
-  line(/^    HOST: "127\.0\.0\.1"$/m);
-  line(/^  upstream: 37317$/m);
-  line(/^    PORT: "37317"$/m);
+test('Ovis has only private bridge ingress behind the DSM gateway', () => {
+  assert.match(compose, /HOST: '0\.0\.0\.0'/);
+  assert.doesNotMatch(compose, /^\s*ports:/m);
+  line(/^    port: 37317$/m);
+  assert.match(compose, /PORT: '37317'/);
   line(/^entry: admin-only$/m);
   line(/^  access: dsm-admins$/m);
   line(/^  mode: token$/m);
@@ -21,7 +24,7 @@ test('telemetry stays user-controlled; self-update off; no ctl, no root', () => 
   assert.doesNotMatch(manifest, /^\s*OVIS_TELEMETRY:/m);
   assert.doesNotMatch(manifest, /^\s*DO_NOT_TRACK:/m);
   line(/off by default/);
-  line(/^    OVIS_AUTO_UPDATE: "0"$/m);
+  assert.match(compose, /OVIS_AUTO_UPDATE: '0'/);
   assert.doesNotMatch(manifest, /^ctl:/m);
   assert.doesNotMatch(manifest, /rootOps|root-ops|run-as: *root/);
 });
@@ -34,7 +37,7 @@ test('attribution: upstream maintainer, Syno Package Land distributor', () => {
 
 test('the bundled herdr listens where Ovis reads, and its pin follows upstream', () => {
   // ovis-launch sets herdr's XDG_CONFIG_HOME to the folder above herdr/herdr.sock
-  line(/^    HERDR_SOCKET: "\$\{SYNOPKG_PKGVAR\}\/herdr\/herdr\.sock"$/m);
+  assert.match(compose, /HERDR_SOCKET: \/data\/home\/config\/herdr\/herdr\.sock/);
   const build = readFileSync(new URL('../../build-source.sh', import.meta.url), 'utf8');
   const version = /^HERDR_VERSION=(\S+)$/m.exec(build)?.[1];
   assert.ok(version, 'HERDR_VERSION');
@@ -47,4 +50,11 @@ test('the bundled herdr listens where Ovis reads, and its pin follows upstream',
 
 test('the icon is drawn per size from icon_256.png down', () => {
   line(/^icon: assets\/icon$/m);
+});
+
+// Commas in an unquoted YAML flow list become separate, invalid mount targets.
+test('DSM storage uses an explicit local volume and one bounded tmpfs mount', () => {
+  assert.equal(parse(compose).volumes.data.driver, 'local');
+  assert.deepEqual(parse(compose).services.ovis.tmpfs,
+    ['/tmp:rw,nosuid,nodev,size=536870912,mode=1777']);
 });

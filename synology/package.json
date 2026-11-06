@@ -3,9 +3,8 @@
   "type": "module",
   "scripts": {
     "test": "npm run test:unit",
-    "test:unit": "node --test tests/unit/*.test.mjs",
-    "test:local": "node --test tests/local/*.test.mjs",
-    "test:nas:ctl": "node --env-file-if-exists=.env --test tests/ctl/*.test.mjs"
+    "test:unit": "node --test tests/local/ovis-manifest.test.mjs tests/local/ovis-admin-only.test.mjs",
+    "test:local": "node --test tests/local/*.test.mjs"
   },
   "devDependencies": {
     "@synopackageland/cli": "0.48.24"

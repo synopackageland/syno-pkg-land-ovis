@@ -1,0 +1,27 @@
+services:
+  ovis:
+    image: ghcr.io/synopackageland/syno-pkg-land-ovis-runtime:0.4.22-0005@sha256:d7fe06be2bada2545708d88f1d4533011e60c629dd460215ffe2e97909464351
+    entrypoint: [/opt/ovis/ovis-launch]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      HOST: '0.0.0.0'
+      PORT: '37317'
+      HOME: /data/home
+      XDG_CONFIG_HOME: /data/home/config
+      HERDR_SOCKET: /data/home/config/herdr/herdr.sock
+      OVIS_STATE_DIR: /data/home/ovis
+      OVIS_NO_OPEN: '1'
+      OVIS_TAILSCALE_SERVE_ONLY: '1'
+      OVIS_AUTO_UPDATE: '0'
+      NPM_CONFIG_PREFIX: /data/home/.local
+      PATH: /data/home/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    volumes: [data:/data]
+    tmpfs: ["/tmp:rw,nosuid,nodev,size=536870912,mode=1777"]
+    mem_limit: 2g
+    cpu_shares: 512
+    restart: unless-stopped
+    stop_grace_period: 30s
+volumes:
+  data: {driver: local}

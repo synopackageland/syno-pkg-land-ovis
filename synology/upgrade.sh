@@ -32,7 +32,7 @@ git merge --no-ff --no-edit "$commit"
 kind=$(node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync(process.argv[1])).kind)' "$packaging/upstream-recipe.json")
 if [[ $kind == official-image ]]; then
   node "$packaging/update-image.mjs" "$1"
-elif [[ $kind != native-source ]]; then
+elif [[ $kind != native-source && $kind != container-source ]]; then
   echo 'Unknown upstream recipe kind.' >&2; exit 2
 fi
 node "$packaging/version.mjs" "$1" "$2"
@@ -42,6 +42,10 @@ export SPL_UPSTREAM_TAG="$1"
 export SPL_UPSTREAM_COMMIT="$commit"
 cd "$packaging"
 if [[ $kind == native-source ]]; then bash ./build-source.sh; fi
+if [[ $kind == container-source ]]; then
+  bash ./build-image.sh
+  synopkgland images pin
+fi
 synopkgland check --json
 synopkgland build --json
 # Review version/provenance and commit synology/ before the next upgrade.

@@ -1,128 +1,142 @@
 # Ovis for DSM
 
-This folder packages [Ovis](https://github.com/devswha/ovis), the browser and
-phone client for the [herdr](https://github.com/herdrdev/herdr) terminal
-multiplexer, as a Synology DSM package. Everything here is ours; files outside
-`synology/` are upstream's and are never edited.
+This folder packages unmodified [Ovis](https://github.com/devswha/ovis) behind
+DSM administrator sign-in. Upstream files outside `synology/` remain unchanged.
 
-- **Maintainer:** devswha (upstream). **Distributor:** Syno Package Land.
-- **Version:** `<upstream version>-<build>`, for example `0.4.22-0001`. The
-  build restarts at 1 with every upstream release.
+Version 0.4.22-0005 replaces the native runtime with an App-owned Ubuntu 24.04
+container. Bun 1.4.2 and herdr 0.9.3 retain the checksum pins in `build-source.sh`;
+Node 22.23.4 (with npm) comes from a digest-pinned official image in
+`container/Dockerfile`; only the binary and npm are copied into Ubuntu. The Node
+PTY fallback uses upstream's pinned @lydell/node-pty 1.1.0 target-native prebuild.
 
-## What runs on the NAS
+## Runtime and access
 
-The NAS is Ovis's always-on *connection server*, the setup upstream describes in
-[One always-on PC for all your PCs](../docs/guide.md#one-always-on-pc-for-all-your-pcs).
-Add your computers under **Settings → Remote PCs**: Ovis connects to them over
-SSH as the package account and starts its own bridge next to their herdr.
+The SDK's official Container Manager project worker runs the image as the fixed
+DSM package UID/GID. The root filesystem is read-only, all capabilities are
+dropped, and no-new-privileges is enabled. There is no privileged mode, host
+network, published container port, device, Docker socket or Shared Folder mount.
+The only writable persistent mount is the project's own named data volume.
+The SDK mounts its initializer and generated authentication seed read-only.
 
-The NAS also runs herdr itself, so the sidebar's row for the NAS (this computer)
-works instead of showing "cannot reach herdr". Upstream has no setting that
-turns this computer's row off; the per-browser **Show in sidebar** switch cannot
-hide the last PC, and the package never patches upstream's code. So the package
-ships herdr:
+The private bridge admits HTTPS traffic only through the host SDK gateway:
 
-- **Binary:** the official herdr Linux release (static, x86_64 and aarch64),
-  pinned by version and SHA-256 in `build-source.sh`. It is the version
-  upstream's own Linux remote bundle ships (`scripts/build-remote-bundle.ts`),
-  and the build stops when upstream moves that pin. Apache-2.0, in `LICENSES/`.
-- **Process:** `ovis-launch` starts `herdr server` (headless) as the package
-  account, then Ovis; package stop ends Ovis, then herdr (SIGTERM, SIGKILL after
-  10 s). A herdr that exits on its own is started again with backoff.
-- **Socket:** herdr listens on `$XDG_CONFIG_HOME/herdr/herdr.sock`; the launcher
-  sets herdr's `XDG_CONFIG_HOME` to the package var folder, so it is the
-  manifest's `HERDR_SOCKET` (`${SYNOPKG_PKGVAR}/herdr/herdr.sock`).
-  `OVIS_HERDR_BIN` names the bundled binary.
-- **Panes on the NAS:** shells run as the package account (`/bin/bash`), with
-  the package var folder as home. No PTY host is shipped (no Node or Rust
-  host), so the NAS's own panes are mirrored from `pane.read`, as upstream does
-  without one. Agents run there only if installed for that account.
-- **Updates:** each package version ships the pinned herdr. herdr itself only
-  reports newer releases (it waits for an explicit install). Ovis's
-  **Settings → About → Update herdr** still works on Linux and has no off switch:
-  it replaces the bundled binary in place with herdr's latest release, and the
-  next package upgrade puts the pinned version back.
-
-```text
-browser ──HTTPS :27317 (DSM nginx, DSM certificate)──▶ SDK identity gateway
-          DSM administrator sign-in; token adapter adds Authorization: Bearer <OVIS_TOKEN>
-                                                    ──▶ Ovis (Bun) on 127.0.0.1:37317
-                                                    ──SSH──▶ bridge + herdr on each PC
+```
+browser -> DSM HTTPS port (default 27317) -> DSM admin gateway -> Ovis:37317
 ```
 
-- **Entry:** a dedicated HTTPS port, chosen in the install wizard (default
-  27317). Ovis serves its app, `/api`, `/ws`, service worker and manifest at `/`
-  and has no base-path setting, so a DSM path (ingress) cannot carry it. A
-  top-level path on DSM's own origin is not safe either: the root-absolute
-  `/api` and `/ws` would collide with DSM's routes, and a service worker at
-  `/sw.js` would take scope over the DSM origin and could intercept DSM's own
-  pages. A port of its own gives Ovis a separate origin.
-- **Administrators only:**
-  - **Icon:** the DSM main-menu icon is shown only to administrators (`allUsers: false`).
-  - **Gateway:** every request on the dedicated port (the app, `/api`, `/ws`, static files and
-    device pairing) passes the identity gateway's `access: dsm-admins` check. It has no
-    passthrough or public paths.
-  - **Ovis itself:** listens on `127.0.0.1` only, so nothing reaches it around the gateway.
-  - **DSM CGIs:** the package's only CGIs are the SDK's entry gate and gateway CGIs; they are
-    admin-only and their permissions default to `administrators`.
-  - **Relay and Portal:** both would reach Ovis without the gateway, so
-    `OVIS_TAILSCALE_SERVE_ONLY=1` keeps them off. With `OVIS_TOKEN` set, its Tailscale rules
-    come after the token check and admit no one.
-  - **Regression test:** `tests/local/ovis-admin-only.test.mjs` checks all of this in the
-    manifest and in a built SPK.
-- **Sign-in:** DSM administrators only (`entry: admin-only`,
-  `access: dsm-admins`). Ovis's documented sign-in-proxy setup: the server runs
-  with `OVIS_TOKEN`, and the gateway sends it on every admitted request. The
-  token is random per install, stored in the package's private var folder
-  (`gateway/ovis-token`, 0600) and never reaches the browser. Ovis's own device
-  pairing is not needed.
-- **Shared identity:** every DSM administrator who opens Ovis is the same Ovis
-  user: they see and change the same remote PCs, sessions and settings. That is
-  acceptable because only DSM administrators get through the gate; normal DSM
-  users are refused before Ovis.
-- **Runtime:** official Bun 1.4.2 (upstream's pin; x86_64 uses the baseline
-  build for CPUs without AVX2) runs upstream's `server/index.ts`, next to the
-  bundled herdr (above). No Node, node-pty or Rust PTY host is shipped. armv7 is not built: Bun has no
-  armv7 release.
-- **Updates:** Package Center only. `server/index.ts` has no updater (that is
-  `server/managed.ts`, which also needs a Git checkout); Settings → Updates says
-  updates are unavailable. `OVIS_AUTO_UPDATE` stays `0`.
-- **Anonymous usage counts:** off by default, and the user's choice.
-  `ovis-launch` writes upstream's own off mark (`telemetry-off` in the state
-  folder) on the first start only; **Settings → About → Anonymous usage counts**
-  can turn them on, which removes the mark, and later starts keep that choice.
-  `OVIS_TELEMETRY` is not set, because it would lock the switch off.
-- **Outbound connections:** herdr may check for its own releases; remote-PC bridge bundles come from upstream's GitHub
-  release `remote-v<N>`, checked against the SHA-256 in its manifest. The Ovis
-  relay (`relay.ovis.sh`) and Portal are disabled (see Administrators only).
+The icon and every gateway route require a DSM administrator. All administrators
+share one Ovis identity. No passthrough, Portal or relay is enabled. Telemetry
+starts off and remains user-controlled. Package Center owns Ovis updates.
+The gateway adapter reads the SDK-generated private runtime seed, which the SDK
+also injects into Ovis. It never sends that credential to the browser. The seed
+rotates when the installed package generation is replaced; home data is retained.
 
-## Files
+`HOME=/data/home` holds agents, npm's user prefix (`~/.local`), workspaces,
+herdr configuration and Ovis state. `/data` is a sticky writable mount base;
+the SDK creates private owned subdirectories without root/chown. The initial
+image UID 1000 is only a standalone default; DSM uses the package identity.
+The container has internet egress for agent installation and remote PCs.
+The memory limit is 2 GiB and CPU scheduling weight is 512. DSM kernels
+without CFS quota support reject a hard `cpus` limit; CPU shares allow the
+container to start on those systems. Large agent workloads may need more memory.
 
-| Path | Purpose |
-| --- | --- |
-| `dsm-package.yaml` | Package manifest: daemon, identity gateway, metadata |
-| `build-source.sh` | Native payload hook: builds upstream with Bun, stages `daemon/<arch>` |
-| `prune-runtime.mjs` | Keeps only the `node_modules` packages the server imports |
-| `adapter/` | `ovis-launch` (creates the token, marks usage counts off on a first start, runs herdr and Bun) and `ovis-token` (gateway adapter), with tests |
-| `assets/icon/`, `assets/make-icon.py` | DSM icon per size: upstream's sheep on a rounded tile; the script that draws it (maintainer tool) |
-| `upgrade.sh`, `version.mjs` | Merge an upstream release tag and set the version |
-| `upstream-source.json` | The upstream tag, commit and build packaged |
-| `backend/`, `i18n/` | SDK entry gate CGI and its messages |
-| `LICENSES/` | Our wrapper's license, Bun's and herdr's licenses; upstream's license and notices ship in the payload's `app/` |
+These limits protect the host from ordinary shell writes, not from kernel
+vulnerabilities. Containers do not provide per-administrator isolation.
 
-## Build
+## Image and SPK build
 
-Needs Go (1.26.10 or later), git, curl and unzip. The hook downloads Bun and herdr itself
-and checks their SHA-256.
+Run on a Linux machine with Docker buildx, Bash, git and tar. The source
+preparation stage supplies Go 1.26.10, curl, unzip and Bun inside Docker.
+Node/npm are needed only for the separate SDK CLI commands. Cross-architecture RUN steps need binfmt/QEMU on that
+same build host. Authenticate to GHCR using an existing credential outside the
+build context. The namespace's package must allow anonymous pulls before pinning
+or building an SPK; the CLI does not inherit private registry credentials.
 
 ```sh
-npm ci                                   # in synology/, for the pinned CLI
-bash synology/upgrade.sh v0.4.23 1      # from the fork root: merge a release tag and build
-# or rebuild the current tag:
-SPL_UPSTREAM_COMMIT=$(git rev-parse v0.4.22^{commit}) bash synology/build-source.sh
-cd synology && npx synopkgland check && npx synopkgland build && npx synopkgland inspect dist/<spk>
-(cd synology/adapter && go test ./...)
+npm ci --include=dev --prefix synology
+export BUILD_PREFIX=ovis-build
+export IMAGE=ghcr.io/synopackageland/syno-pkg-land-ovis-runtime:<upstream>-<build>
+bash synology/build-image.sh
+cd synology
+npx synopkgland images pin
+npx synopkgland check --json
+npx synopkgland build --json
+npx synopkgland inspect dist/<spk> --json
 ```
 
-When upstream changes its Bun pin (`packageManager`), the hook stops; update
-`BUN_VERSION` and the digests from that Bun release's `SHASUMS256.txt`.
+The build script exports upstream source privately into a pinned Go toolchain
+container, builds the web client using
+upstream's Bun command, verifies both Bun/herdr downloads and stages both
+architectures. An isolated, prefixed buildx builder builds and pushes the image
+index. Its cache is pruned and builder removed on exit; existing volumes and
+shared builders are untouched. `BUILD_PROXY` optionally supplies an operator's
+HTTP CONNECT proxy to the builder and HTTPS build downloads. No host paths are
+hardcoded. `OUTPUT=load PLATFORMS=linux/amd64` supports a local single-architecture
+smoke build. `ARCHIVE=/path/to/image.oci.tar` also exports a multi-architecture
+OCI archive during a push build; `docker save` can export that image for transfer to a test NAS.
+`SKIP_SOURCE_BUILD=1` reuses already verified local payloads during iteration.
+`KEEP_BUILDER=1` keeps only that run's builder/cache for an active retry; finish
+with `docker buildx prune --builder "$BUILD_PREFIX-ovis-builder" --all --force`
+and `docker buildx rm "$BUILD_PREFIX-ovis-builder"`.
+
+For an upstream version change, set the image tag and run
+`bash synology/upgrade.sh <upstream-tag> <build>`; it merges the selected tag,
+builds the image, pins it and builds the package. No merge to main or release is
+performed by these scripts.
+
+## Userland packages
+
+Ubuntu supplies glibc for Bun, Node and agents. Explicit additional packages:
+
+| Package | Purpose |
+| --- | --- |
+| bash | Interactive panes and common installer scripts |
+| git | Agent repositories and worktrees |
+| openssh-client | Ovis remote PCs and Git SSH transport |
+| curl, ca-certificates | HTTPS installers and certificate validation |
+| unzip, xz-utils | Common release archive extraction |
+| procps | Agent process inspection |
+
+No compiler, sudo, Docker client or system daemon is installed. Agent installers
+needing extra system packages require a future image revision.
+
+## Upgrade and data
+
+Native releases stored their home and Ovis/herdr state directly in the package
+var directory. The container uses a named volume; this version does not copy old
+native state automatically. Retain the native var directory for recovery and
+set up remote PCs/agents again in the new container home. Do not delete legacy
+state or existing volumes during upgrade. Container stop/start and later upgrades
+reuse the same named volume. SDK uninstall retains named volumes even when its
+delete-data option is selected; the wizard reports that boundary.
+
+## Distribution choices
+
+The supported SPK contains the image's pinned registry metadata, not image
+layers. Container Manager obtains those layers separately. Public GHCR visibility
+is required for ordinary anonymous CLI builds and fresh installations. A
+build-operator metadata mirror can authenticate to a private registry during
+local verification; this does not give the shipped package registry credentials.
+
+The pinned CLI's `buildStandalone` API accepts saved `composeImageProofsByArch`
+for offline rebuilding. A build operator can extract the index, platform
+manifests and configs from an OCI archive; the SDK verifies their SHA-256,
+repository and platform before packaging. This supplies metadata only and does
+not load the image on the NAS.
+
+The current CLI has no image-tar-in-SPK/offline-load option. Preloading an exact
+image with `docker save` / `docker load` is a separate administrator test/setup
+step, not a shipped installer hook. Do not add a root hook or give the package
+Docker access to implement loading. An offline bundle would add the full image
+archive to each architecture's SPK and needs a supported privileged image-import
+contract before implementation. It avoids registry availability at installation
+but makes every package download/upgrade carry the runtime layers again.
+
+## Validation
+
+`npm test` runs packaging access/pin contracts; `(cd adapter && go test ./...)`
+checks launcher/token behavior. `npm run test:local` also builds/inspects the SPK.
+Device acceptance must separately verify native-to-container upgrade, fresh
+administrator entry, anonymous/nonadmin rejection, an agent installed from an
+Ovis terminal, UID/mount readback and persistence. Static checks alone do not
+establish DSM acceptance. Keep screenshots outside Git.

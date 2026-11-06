@@ -1,15 +1,14 @@
 # Ovis for DSM: the upstream Ovis web app (a browser and phone client for the
-# herdr terminal multiplexer) behind DSM administrator sign-in. The NAS is the
-# always-on "connection server": it reaches the herdr sessions on other PCs
-# over SSH (Settings > Remote PCs), and runs a bundled herdr of its own so the
-# NAS's own row works too.
+# herdr terminal multiplexer) behind DSM administrator sign-in. All local
+# shells, agents, herdr and Ovis run inside the package container. Remote PCs
+# are reached over SSH (Settings > Remote PCs).
 # `synopkgland build` reads this file.
 schema: 2
 
 package: Ovis
 version: 0.4.22
 # The build resets to 1 with every upstream release (INFO <upstream>-0001).
-build: 4
+build: 5
 displayname: Ovis
 description: Herdr's coding agents in your browser and on your phone, served from your NAS.
 # Upstream's sheep (app/assets/ovis-sheep.png), unchanged, on a rounded DSM-style
@@ -25,56 +24,36 @@ arches: [x86_64, aarch64]
 # The DSM menu icon and Package Center's Open start the gateway entry, which
 # signs a DSM administrator in and forwards to Ovis's own web app. There is no
 # SDK window: Ovis's web app is the only UI.
-ui: false
+ui: {launch: new-page}
 entry: admin-only
-
-# The small SDK CGI behind the DSM entry policy.
-backend:
-  kind: go
-  dir: backend
-  main: ./cmd/app
 
 # The gateway's public HTTPS port is chosen in the install wizard.
 install:
   ports: true
 
-daemon:
-  # ovis-launch creates the per-install OVIS_TOKEN (package-private, 0600),
-  # starts the bundled herdr (`herdr server`, as the package account) on
-  # HERDR_SOCKET, then runs the packaged Bun on upstream's server/index.ts
-  # (`bun run server`). Package stop ends Ovis, then herdr.
-  exec: ovis-launch
-  targets:
-    x86_64: daemon/x86_64
-    aarch64: daemon/aarch64
-  env:
-    # Loopback only: the DSM identity gateway is the one way in.
-    HOST: "127.0.0.1"
-    PORT: "37317"
-    OVIS_STATE_DIR: "${SYNOPKG_PKGVAR}/ovis"
-    # The bundled herdr's socket: ovis-launch sets herdr's XDG_CONFIG_HOME to
-    # ${SYNOPKG_PKGVAR}, and herdr listens on $XDG_CONFIG_HOME/herdr/herdr.sock.
-    HERDR_SOCKET: "${SYNOPKG_PKGVAR}/herdr/herdr.sock"
-    # No OVIS_TELEMETRY here: that would lock the in-app switch. ovis-launch
-    # instead writes upstream's own off mark (telemetry-off) on a first start,
-    # so anonymous usage counts are off by default and Settings > About can
-    # still turn them on.
-    OVIS_NO_OPEN: "1"
-    # Administrators only: every way into Ovis goes through the DSM identity
-    # gateway (access: dsm-admins). This keeps Ovis's own ways around it shut:
-    # the Ovis relay (relay.ovis.sh) cannot be enabled and relay sessions are
-    # refused, and Portal (a public tunnel) cannot start. With OVIS_TOKEN set,
-    # its Tailscale rules come after the token check, so it admits no one.
-    OVIS_TAILSCALE_SERVE_ONLY: "1"
-    # Package Center owns versions: server/index.ts has no self-updater (that
-    # is server/managed.ts, which needs a Git checkout), and auto-update stays off.
-    OVIS_AUTO_UPDATE: "0"
-  restart: {mode: on-failure}
-  timeouts:
-    start: 60
-    stop: 30
-    status: 5
-    uninstall: 60
+# The SDK fixes the runtime UID/GID to the DSM package account.
+compose:
+  sdk: 0.50.16
+  files: [compose.yaml]
+  helpers:
+    x86_64: helpers/x86_64
+    aarch64: helpers/aarch64
+  services:
+    ovis:
+      storage_init:
+        directories:
+          - {base: /data, path: home}
+          - {base: /data, path: home/ovis}
+          - {base: /data, path: home/config}
+          - {base: /data, path: home/config/herdr}
+        runtime:
+          environment:
+            OVIS_TOKEN: {secret: ovis}
+  web:
+    service: ovis
+    port: 37317
+    health: {path: /api/health, status: 200}
+  network: {egress: internet}
 
 identity_gateway:
   sdk: 0.50.16
@@ -84,7 +63,6 @@ identity_gateway:
   # there is no second App password.
   mode: token
   access: dsm-admins
-  upstream: 37317
   # Ovis serves its app, API (/api), terminal (/ws), service worker and
   # manifest at the root and has no base-path setting, so it gets a dedicated
   # HTTPS port (DSM's certificate) instead of a DSM path.
@@ -113,7 +91,7 @@ metadata:
       herdr sessions. On DSM it runs as the always-on connection server: add your
       PCs under Settings > Remote PCs and Ovis reaches their herdr sessions over
       SSH. The NAS also runs a bundled herdr of its own, so its sidebar row works
-      and shells or agents installed for the package can run on the NAS.
+      and shells and agents run inside an unprivileged Ubuntu container.
       It is for DSM administrators only: the icon is shown only to
       administrators, every request goes through the DSM administrator gate,
       and all administrators share one Ovis identity. The Ovis relay and Portal
@@ -123,7 +101,7 @@ metadata:
       Ovis 把電腦上的 coding agent 帶到瀏覽器和手機：對話、提示與核准卡片、推播
       通知和即時終端機，適用於 herdr 工作階段。在 DSM 上它是一直開機的連線伺服器：
       在 Settings > Remote PCs 加入電腦，Ovis 便透過 SSH 連到這些電腦的 herdr 工作
-      階段。NAS 本身也執行套件內附的 herdr，所以側欄中 NAS 本機那一列可正常使用。僅限 DSM 管理員：只有管理員看得到圖示，每個請求都經過
+      階段。NAS 本身也執行套件內附的 herdr，所以側欄中 NAS 本機那一列可正常使用；shell 與 agent 在非 root 的 Ubuntu 容器內執行。僅限 DSM 管理員：只有管理員看得到圖示，每個請求都經過
       DSM 管理員驗證，所有管理員共用同一個 Ovis 身分；Ovis relay 與 Portal 已停用。匿名使用統計預設關閉（可在 Settings > About 開啟），更新只透過套件中心
 
 i18n:

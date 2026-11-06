@@ -1,7 +1,0 @@
-{
-  "schema": 1,
-  "default": "administrators",
-  "methods": {
-    "app.status": "administrators"
-  }
-}
