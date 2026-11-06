@@ -43,6 +43,7 @@ const packageCLI = '/usr/syno/bin/synopkg';
 const results = [];
 let browser, adminContext, app, workspaceId, paneId, directoryCreated = false;
 let restartAttempted = false;
+let startAttempted = false;
 let stage = '';
 const quote = value => `'${value.replaceAll("'", "'\\''")}'`;
 
@@ -297,6 +298,7 @@ try {
     restartAttempted = true;
     await ssh(`${packageCLI} stop Ovis`);
     assert.notEqual(JSON.parse(await ssh(`${packageCLI} status Ovis || :`)).status, 'running');
+    startAttempted = true;
     await ssh(`${packageCLI} start Ovis`);
     await until(async () => JSON.parse(await ssh(`${packageCLI} status Ovis`)), value => value.status === 'running',
       'Package did not restart');
@@ -317,8 +319,15 @@ try {
   results.push({ name: 'prerequisite', status: 'fail', detail: { stage, kind: error.name } });
 } finally {
   await check('cleanup-and-running', async () => {
-    // A failing case must never leave the package stopped.
-    if (restartAttempted) await ssh(`${packageCLI} start Ovis`);
+    // Restore after a stop only if no start was sent; an attempted start may
+    // still be pending in DSM even after the client has timed out.
+    if (restartAttempted && !startAttempted) {
+      const state = JSON.parse(await ssh(`${packageCLI} status Ovis || :`));
+      if (['stop', 'stopped'].includes(state.status)) {
+        startAttempted = true;
+        await ssh(`${packageCLI} start Ovis`);
+      }
+    }
     await until(async () => JSON.parse(await ssh(`${packageCLI} status Ovis`)), value => value.status === 'running',
       'Package is not running after cleanup');
     if (workspaceId) {

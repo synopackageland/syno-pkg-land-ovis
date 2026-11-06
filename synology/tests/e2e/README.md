@@ -13,6 +13,8 @@ Run only against a device authorized for a brief Ovis outage. Other Ovis clients
 will disconnect during stop/start. Existing workspaces are left alone. The suite
 creates a uniquely named directory in the container's data volume and a workspace
 using that directory; its final case removes those fixtures and leaves Ovis running.
+Cleanup does not resend a start request that may still be pending in DSM. An
+unresolved package operation is reported for operator recovery through Package Center.
 Nine cases run once, without case retries. Startup/reconnect predicates allow three
 minutes; individual browser actions allow the same budget. Shell typing waits for
 both terminal presentation and enabled input controls, then focuses xterm's input.
