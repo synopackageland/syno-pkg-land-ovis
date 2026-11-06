@@ -9,6 +9,8 @@ Node 22.23.4 (with npm) comes from a digest-pinned official image in
 `container/Dockerfile`; only the binary and npm are copied into Ubuntu. The Node
 PTY fallback uses upstream's pinned @lydell/node-pty 1.1.0 target-native prebuild.
 Version 0.4.22-0006 adds common shell tools and Python with pip and venv support.
+It uses SDK 0.52.0 with CLI 0.50.0 to retain the Container Manager project
+profile across package stop/start.
 
 ## Runtime and access
 
