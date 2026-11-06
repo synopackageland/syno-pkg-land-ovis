@@ -3,6 +3,8 @@
 This opt-in suite exercises an already installed Ovis package. It opens the DSM
 main menu, starts a private shell workspace through Ovis, types a harmless command,
 reads its actual output, and stops/starts **Ovis only** to check persistence.
+After restart it reopens the DSM entry with the retained administrator session
+to obtain a fresh gateway session before checking the saved marker and workspace.
 It also checks administrator admission, anonymous/nonadministrator refusal,
 container isolation, and telemetry/relay/Portal state. It never installs,
 upgrades, uninstalls, reboots, changes accounts, or changes outbound settings.

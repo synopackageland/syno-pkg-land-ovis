@@ -75,6 +75,16 @@ async function api(path, body) {
   assert.equal(result.status, 200, `App request failed: ${path}`);
   return result.value;
 }
+async function reopenFromDSM() {
+  // A gateway restart can invalidate its browser session. Re-enter with the
+  // retained DSM session before checking the App's persistent data.
+  await until(async () => {
+    await app.goto(new URL('/webman/3rdparty/Ovis/sso/open.cgi', config.dsmUrl).href,
+      { timeout: 15_000, waitUntil: 'domcontentloaded' });
+    await app.waitForURL(url => url.origin === new URL(config.appUrl).origin, { timeout: 15_000 });
+    return true;
+  }, Boolean, 'DSM entry did not recover');
+}
 async function login(role) {
   const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 1000 } });
   context.setDefaultTimeout(180_000);
@@ -90,10 +100,11 @@ async function login(role) {
     await page.locator('#sds-desktop').waitFor({ state: 'visible', timeout: 180_000 });
     await page.locator('#sds-taskbar-tray-item-user').waitFor();
     // Reuse Clef's read-only DSM bootstrap/desktop semantics; no model or AI key needed.
-    const snapshot = await dsmAdapter({ startupWaitMs: 60_000 }).observe(page, {
+    const adapter = dsmAdapter({ startupWaitMs: 60_000 });
+    const snapshot = await until(() => adapter.observe(page, {
       revision: 'desktop', viewport: { width: 1440, height: 1000 }, text: '',
       truncated: false, tree: { id: 'root', role: 'document', children: [] },
-    });
+    }), value => value.desktopReady === true, 'Clef did not confirm DSM desktop readiness');
     assert.equal(snapshot.desktopReady, true, 'Clef did not confirm DSM desktop readiness');
     return { context, page };
   } catch (error) { await context.close(); throw error; }
@@ -291,7 +302,7 @@ try {
       'Package did not restart');
     const newStarted = await ssh(`${docker} inspect --format '{{.State.StartedAt}}' ${quote(config.containerName)}`);
     assert.notEqual(newStarted, oldStarted, 'Container did not restart');
-    await app.reload();
+    await reopenFromDSM();
     await until(() => api('/api/health'), value => value.ok && value.herdr, 'Herdr did not recover');
     assert.equal(await container(`cat ${quote(`${fixtureDir}/marker`)}`), fixture);
     const { snapshot } = await api('/api/session');
@@ -311,7 +322,7 @@ try {
     await until(async () => JSON.parse(await ssh(`${packageCLI} status Ovis`)), value => value.status === 'running',
       'Package is not running after cleanup');
     if (workspaceId) {
-      await app.reload();
+      await reopenFromDSM();
       await until(() => api('/api/health'), value => value.ok && value.herdr, 'Cleanup connection unavailable');
       const { snapshot } = await api('/api/session');
       const own = snapshot.workspaces.find(workspace => workspace.workspace_id === workspaceId);
