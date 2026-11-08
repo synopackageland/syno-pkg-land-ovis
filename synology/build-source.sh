@@ -166,6 +166,7 @@ for pair in x86_64:amd64 aarch64:arm64; do
   cp "$(fetch_bun "$arch")" "$out/bun"
   cp "$(fetch_herdr "$arch")" "$out/herdr"
   cp -R "$app" "$out/app"
+  cp -R "$packaging/runtime" "$out/runtime"
   chmod 0755 "$out/ovis-launch" "$out/ovis-token" "$out/bun" "$out/herdr"
 done
 echo "payload staged in $packaging/daemon" >&2
