@@ -1,63 +1,61 @@
-# Ovis 0.4.22-0006
+# Ovis 0.5.1-0001
 
-The first public DSM release of [Ovis](https://github.com/devswha/ovis), the
-browser and phone client for herdr. Ovis is maintained by devswha; the DSM
-package is distributed by Syno Package Land.
+Upgrade to upstream [Ovis v0.5.1](https://github.com/devswha/ovis/releases/tag/v0.5.1),
+including the changes in v0.5.0. Ovis is maintained by devswha; the DSM package
+is distributed by Syno Package Land.
 
-## What you get
+## Changes
 
-- Access herdr workspaces, coding-agent conversations, prompts, approval cards
-  and live terminals from a browser or phone.
-- Connect your other computers over SSH from **Settings > Remote PCs**.
-- Run local shells and agents inside the package's own Ubuntu container, with
-  bundled herdr, Bun, Node.js and npm.
-- Use common command-line tools, including Git, curl, jq, ripgrep, fd, rsync,
-  SQLite and Python with pip and virtual environments.
-- Keep the container's home data and workspace state across package stop/start.
+- Find SSH connections under **Settings > Devices and PCs > Add a connection > SSH**.
+  The Add PC dialog retains the package's SSH guidance and **Copy public key** action.
+- Receive upstream improvements to agent conversations, conversation search,
+  file viewing, agent grouping and alerts. Version 0.5.1 also fixes terminal
+  cursor movement, Safari sidebar height and phone file scrolling.
+- Repair SSH account lookup and retained-home ownership when upgrading from
+  0.4.22-0006. Existing private keys, SSH aliases and workspace data are retained.
+- Rebuild both runtime architectures from the unmodified v0.5.1 source, using
+  SDK 0.53.9 and CLI 0.52.6, with an immutable container image digest.
 
 ## Requirements and sign-in
 
-Install and start Container Manager before installing Ovis. This release
-requires DSM 7.2.1-69057 or later and a compatible x86_64 or aarch64 NAS that
-supports Container Manager. Choose the SPK for your NAS architecture.
-Installation downloads the pinned container image from the internet; the SPK
-does not include the image layers.
+Requires DSM 7.2.1-69057 or later, Container Manager installed and running,
+and a compatible x86_64 or aarch64 NAS. Select the matching SPK. Installation
+downloads the pinned runtime image from the internet; image layers are not
+included in the SPK.
 
-Open Ovis from the DSM menu or Package Center and sign in with a DSM
-administrator account. The app opens on its own HTTPS page. All DSM
-administrators share one Ovis identity, including its workspaces, credentials
-and settings. There is no separate Ovis password or per-administrator isolation.
-Other DSM users cannot enter.
+Open Ovis from the DSM menu or Package Center using a DSM administrator session.
+All administrators share the same Ovis identity, home, credentials and settings.
+There is no separate Ovis password. The package does not require executor
+approval or an additional DSM password confirmation. Standard third-party
+package consent and Ovis's remote bridge confirmation still apply. Remote PCs
+retain their own SSH authentication and host-key verification.
 
 ## Runtime and privacy
 
-Shells and agents run as the package account inside an unprivileged container.
-The container has a read-only root filesystem and its own persistent data
-volume, with no NAS Shared Folder or Docker socket mounted. Its memory limit is
-2 GiB; large agent workloads may exceed that limit. Extra system packages and
-compilers cannot be installed into the read-only image.
+Shells, agents and SSH run as root inside the package's Ubuntu container, with
+HOME and root's passwd home set to `/data/home`. Without user namespace remapping,
+container UID 0 is also host UID 0. Host package control and the gateway run as
+the DSM package account.
 
-The container can access the internet for downloads, agents and SSH connections.
-Ovis relay and Portal are disabled in this package. Anonymous usage counts are
-off by default and can be enabled in **Settings > About**. Updates come through
-DSM Package Center.
+The container has a read-only root filesystem, no-new-privileges, dropped
+capabilities with DAC_OVERRIDE and CHOWN explicitly enabled for retained home
+migration, and its own named data volume. Container Manager may additionally
+supply NET_BIND_SERVICE. No NAS Shared Folder or Docker socket is mounted.
+The memory limit is 2 GiB. The image includes common shell tools and Python
+with pip and virtual environments; its system filesystem cannot be modified.
 
-## Data retention
+The container has internet access for agents, downloads and SSH. Relay and
+Portal remain disabled in this package, including upstream's account relay
+connection flow. Anonymous usage counts start off and remain user-controlled
+under Settings > About. Updates come through Package Center.
 
-Package stop/start and subsequent container-based upgrades reuse the data volume.
-Uninstalling retains that volume, including when the wizard's delete-data option
-is selected. Keep this in mind when retiring an installation containing
-credentials or agent history.
+## Retained data
 
-If you used an earlier native preview package, its data is not migrated into
-the container automatically. Keep the old data for recovery and configure your
-remote computers and agents again in the container.
+Upgrades reuse the data volume. Uninstalling retains it even when the wizard's
+delete-data option is selected; retained data may contain credentials and
+agent history. The ownership migration stays within the private home and does
+not follow symlinks. Earlier native preview data is not imported automatically.
 
-## Versioning and license
-
-Package versions use **upstream version-build**: `0.4.22-0006` packages upstream
-Ovis `0.4.22`, build `0006`. The build number restarts with each upstream version.
-
-Ovis and the DSM wrapper are MIT licensed. Bundled runtimes and other
-dependencies retain their respective licenses and notices, included with the
-package.
+The package version is upstream version plus packaging build; the build resets
+to 0001 for this upstream upgrade. Ovis and the DSM wrapper are MIT licensed;
+bundled dependencies retain their included licenses and notices.

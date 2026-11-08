@@ -9,7 +9,7 @@ import (
 )
 
 func TestWithTokenReplacesInheritedTokens(t *testing.T) {
-	env := withToken([]string{"PATH=/usr/bin:/bin", "OVIS_TOKEN=old", "HERDR_WEB_TOKEN=older", "OVIS_TOKENS=keep"}, "new")
+	env := withToken([]string{"PATH=/usr/bin:/bin", "OVIS_TOKEN=old", "OVIS_TOKENS=keep"}, "new")
 	want := []string{"PATH=/usr/bin:/bin", "OVIS_TOKENS=keep", "OVIS_TOKEN=new"}
 	if !slices.Equal(env, want) {
 		t.Fatalf("env = %v, want %v", env, want)
@@ -63,9 +63,9 @@ func TestHerdrConfigHomeFollowsTheSocket(t *testing.T) {
 }
 
 func TestHerdrEnvDropsTokensAndPaneVariables(t *testing.T) {
-	env := herdrEnv([]string{"PATH=/usr/bin:/bin", "HOME=/v", "OVIS_TOKEN=x", "HERDR_WEB_TOKEN=y", "HERDR_ENV=1", "HERDR_SOCKET=/v/herdr/herdr.sock", "XDG_CONFIG_HOME=/elsewhere", "SHELL=/sbin/nologin", "OVIS_STATE_DIR=/v/ovis"}, "/v")
+	env := herdrEnv([]string{"PATH=/usr/bin:/bin", "HOME=/v", "OVIS_TOKEN=x", "HERDR_ENV=1", "HERDR_SOCKET=/v/herdr/herdr.sock", "XDG_CONFIG_HOME=/elsewhere", "SHELL=/sbin/nologin", "OVIS_STATE_DIR=/v/ovis"}, "/v")
 	for _, kv := range env {
-		if hasKey(kv, "OVIS_TOKEN") || hasKey(kv, "HERDR_WEB_TOKEN") || hasKey(kv, "HERDR_ENV") || hasKey(kv, "HERDR_SOCKET") || kv == "XDG_CONFIG_HOME=/elsewhere" || kv == "SHELL=/sbin/nologin" {
+		if hasKey(kv, "OVIS_TOKEN") || hasKey(kv, "HERDR_ENV") || hasKey(kv, "HERDR_SOCKET") || kv == "XDG_CONFIG_HOME=/elsewhere" || kv == "SHELL=/sbin/nologin" {
 			t.Fatalf("herdr env keeps %q: %v", kv, env)
 		}
 	}
