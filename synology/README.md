@@ -9,14 +9,25 @@ Node 22.23.4 (with npm) comes from a digest-pinned official image in
 `container/Dockerfile`; only the binary and npm are copied into Ubuntu. The Node
 PTY fallback uses upstream's pinned @lydell/node-pty 1.1.0 target-native prebuild.
 Version 0.4.22-0006 adds common shell tools and Python with pip and venv support.
-It uses SDK 0.52.0 with CLI 0.50.0 to retain the Container Manager project
-profile across package stop/start.
+Version 0.4.22-0007 explicitly runs the Ovis container as root so SSH can resolve
+its account, while keeping HOME and the root account home at /data/home. It uses SDK 0.53.8 for the root runtime environment.
+Version 0.4.22-0006 introduced SDK 0.52.0 with CLI 0.50.0 to retain the
+Container Manager project profile across package stop/start; this release
+keeps the CLI pin and moves the SDK to 0.53.8.
 
 ## Runtime and access
 
-The SDK's official Container Manager project worker runs the image as the fixed
-DSM package UID/GID. The root filesystem is read-only, all capabilities are
-dropped, and no-new-privileges is enabled. There is no privileged mode, host
+The SDK's official Container Manager project worker assigns UID/GID 0 inside the
+Ovis container through the explicit `run_as: container-root` service policy.
+Host package hooks, the Compose control tool and the identity gateway remain the
+DSM package account. This option does not install an executor or request SDK
+administrator authorization, rootOps approval or DSM password reconfirmation.
+Normal DSM administrator sign-in remains the App entry gate.
+
+The root filesystem is read-only. The wrapper declares `cap_drop: [ALL]` and
+explicitly adds only `DAC_OVERRIDE` and `CHOWN`, with no-new-privileges enabled.
+The observed DSM Container Manager runtime also supplies `NET_BIND_SERVICE`,
+which was present in the previous package runtime too. There is no privileged mode, host
 network, published container port, device, Docker socket or Shared Folder mount.
 The only writable persistent mount is the project's own named data volume.
 The SDK mounts its initializer and generated authentication seed read-only.
@@ -36,8 +47,10 @@ rotates when the installed package generation is replaced; home data is retained
 
 `HOME=/data/home` holds agents, npm's user prefix (`~/.local`), workspaces,
 herdr configuration and Ovis state. `/data` is a sticky writable mount base;
-the SDK creates private owned subdirectories without root/chown. The initial
-image UID 1000 is only a standalone default; DSM uses the package identity.
+the launcher creates private home subdirectories. The initial image UID 1000 is
+only a standalone default; DSM explicitly assigns container UID 0. On DSM without
+user namespace remapping this is host UID 0, with only the declared volume and
+read-only SDK mounts visible.
 The container has internet egress for agent installation and remote PCs.
 The memory limit is 2 GiB and CPU scheduling weight is 512. DSM kernels
 without CFS quota support reject a hard `cpus` limit; CPU shares allow the
@@ -45,6 +58,38 @@ container to start on those systems. Large agent workloads may need more memory.
 
 These limits protect the host from ordinary shell writes, not from kernel
 vulnerabilities. Containers do not provide per-administrator isolation.
+
+## SSH setup
+
+Settings > Remote PCs > Add PC shows **SSH keys and configuration**, the
+package's public key and a **Copy public key** button. On first start the launcher
+creates an Ed25519 key in `/data/home/.ssh/id_ed25519` and its `.pub` file, using
+private directory/file modes. Existing private keys are retained and never
+overwritten. The private key is never returned by the setup endpoint.
+
+Copy the public key to `~/.ssh/authorized_keys` for the account on the remote PC,
+set that PC's `.ssh` directory to mode 700 and `authorized_keys` to mode 600, and
+enable its SSH service. Verify the PC's host-key fingerprint on the PC before
+accepting the upstream Ovis trust prompt. Password/passphrase challenges for the
+remote PC still belong to upstream; there is no extra DSM password prompt.
+
+In an Ovis terminal, edit `/data/home/.ssh/config` for SSH aliases and
+`/data/home/.ssh/known_hosts` for trusted hosts. Use absolute key paths. These
+files and keys belong to the Ovis container, separate from DSM users and the NAS
+SSH service. A host or browser ssh-agent is not forwarded into the container.
+All admitted DSM administrators share the same Ovis home and SSH identity.
+
+The package-owned Bun preload adapter adds this guidance without changing
+upstream source or translations. Its public-key endpoint requires the same
+server-side gateway bearer credential; it exposes only a bounded public key.
+Known connection failures get recovery instructions, while upstream still owns
+connection jobs, password handling, fingerprint decisions and terminal streams.
+
+The guidance follows [Zed’s SSH remote-development model](https://zed.dev/docs/remote-development):
+use OpenSSH configuration and key authentication, and keep remote authentication
+and host-key prompts in the existing connection flow. Here the SSH client lives
+in the DSM container, so the guidance names its home explicitly. No Zed code or
+visual assets are copied.
 
 ## Image and SPK build
 
@@ -139,6 +184,23 @@ set up remote PCs/agents again in the new container home. Do not delete legacy
 state or existing volumes during upgrade. Container stop/start and later upgrades
 reuse the same named volume. SDK uninstall retains named volumes even when its
 delete-data option is selected; the wizard reports that boundary.
+
+### Upgrade from package-UID containers
+
+`DAC_OVERRIDE` lets the startup adapter traverse retained mode-0700 directories
+and read the package-owned runtime seed. `CHOWN` permits a one-time migration of
+`/data/home` to UID/GID 0, needed both for OpenSSH's config ownership check and
+Git's repository ownership check. Modes and contents are retained. The adapter
+walks only this App's named-volume home through a confined filesystem root,
+changes link ownership without following links, and refuses filesystem boundaries.
+It writes a private version marker only after the walk succeeds; interrupted
+migration resumes safely and later starts skip completed migration.
+
+No host root hook, FOWNER capability or Git safe.directory wildcard is used.
+The capabilities apply to files visible in the container; no writable host or
+Shared Folder bind is declared. The root filesystem and SDK bind mounts stay
+read-only. Downgrading to an older
+package-UID runtime requires a separate recovery procedure and is not verified.
 
 ## Distribution choices
 

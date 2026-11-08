@@ -19,7 +19,7 @@ test('Ovis has only private bridge ingress behind the DSM gateway', () => {
   assert.doesNotMatch(manifest, /^\s*upstream_auth_paths:/m);
 });
 
-test('telemetry stays user-controlled; self-update off; no ctl, no root', () => {
+test('telemetry stays user-controlled; self-update off; no ctl or host root hooks', () => {
   // off by default comes from ovis-launch's first-start mark; the env would lock the in-app switch
   assert.doesNotMatch(manifest, /^\s*OVIS_TELEMETRY:/m);
   assert.doesNotMatch(manifest, /^\s*DO_NOT_TRACK:/m);
@@ -57,4 +57,17 @@ test('DSM storage uses an explicit local volume and one bounded tmpfs mount', ()
   assert.equal(parse(compose).volumes.data.driver, 'local');
   assert.deepEqual(parse(compose).services.ovis.tmpfs,
     ['/tmp:rw,exec,nosuid,nodev,size=536870912,mode=1777']);
+});
+
+
+test('container root is explicit with only retained-data migration capabilities', () => {
+ const m=parse(manifest);const policy=m.compose.services.ovis;
+ assert.equal(policy.run_as.mode,'container-root');
+ assert.ok(policy.run_as.reason);
+ assert.deepEqual(policy.run_as.capabilities,['DAC_OVERRIDE', 'CHOWN']);
+ assert.equal(policy.storage_init.directories,undefined);
+ assert.deepEqual(policy.storage_init.runtime.environment.OVIS_TOKEN,{secret:'ovis'});
+ const image=readFileSync(new URL('../../container/Dockerfile',import.meta.url),'utf8');
+ assert.match(image,/usermod --home \/data\/home root/);
+ assert.equal(parse(compose).services.ovis.environment.HOME,'/data/home');
 });

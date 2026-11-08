@@ -1,6 +1,6 @@
 services:
   ovis:
-    image: ghcr.io/synopackageland/syno-pkg-land-ovis-runtime:0.4.22-0006@sha256:89c4639f8a2606ce80b860a81db1e47592f045b1d1407b3f91e4e23160f0d2c2
+    image: ghcr.io/synopackageland/syno-pkg-land-ovis-runtime:0.4.22-0007@sha256:ffebf8a83830da908b93418eb8dee37899dbc8c71aea3d976f5d4be005058f13
     entrypoint: [/opt/ovis/ovis-launch]
     read_only: true
     cap_drop: [ALL]
