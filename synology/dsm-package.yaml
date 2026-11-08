@@ -6,9 +6,9 @@
 schema: 2
 
 package: Ovis
-version: 0.4.22
+version: 0.5.1
 # The build resets to 1 with every upstream release (INFO <upstream>-0001).
-build: 7
+build: 1
 displayname: Ovis
 description: Herdr's coding agents in your browser and on your phone, served from your NAS.
 # Upstream's sheep (app/assets/ovis-sheep.png), unchanged, on a rounded DSM-style
@@ -33,7 +33,7 @@ install:
 
 # Root is explicitly opted in for the container only; DSM helpers retain the package UID.
 compose:
-  sdk: 0.53.8
+  sdk: 0.53.9
   files: [compose.yaml]
   helpers:
     x86_64: helpers/x86_64
@@ -55,7 +55,7 @@ compose:
   network: {egress: internet}
 
 identity_gateway:
-  sdk: 0.53.8
+  sdk: 0.53.9
   # A DSM administrator signs in; the fixed token adapter then supplies Ovis's
   # own proxy credential (Authorization: Bearer <OVIS_TOKEN>), the sign-in
   # proxy setup upstream documents. The browser never receives the token, and

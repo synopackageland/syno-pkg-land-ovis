@@ -3,17 +3,17 @@
 This folder packages unmodified [Ovis](https://github.com/devswha/ovis) behind
 DSM administrator sign-in. Upstream files outside `synology/` remain unchanged.
 
-Version 0.4.22-0005 replaces the native runtime with an App-owned Ubuntu 24.04
-container. Bun 1.4.2 and herdr 0.9.3 retain the checksum pins in `build-source.sh`;
-Node 22.23.4 (with npm) comes from a digest-pinned official image in
-`container/Dockerfile`; only the binary and npm are copied into Ubuntu. The Node
-PTY fallback uses upstream's pinned @lydell/node-pty 1.1.0 target-native prebuild.
-Version 0.4.22-0006 adds common shell tools and Python with pip and venv support.
-Version 0.4.22-0007 explicitly runs the Ovis container as root so SSH can resolve
-its account, while keeping HOME and the root account home at /data/home. It uses SDK 0.53.8 for the root runtime environment.
-Version 0.4.22-0006 introduced SDK 0.52.0 with CLI 0.50.0 to retain the
-Container Manager project profile across package stop/start; this release
-keeps the CLI pin and moves the SDK to 0.53.8.
+Version 0.5.1-0001 packages upstream v0.5.1 without modifying its source.
+It uses SDK 0.53.9 (Compose and identity gateway) and CLI 0.52.6.
+The runtime is rebuilt for x86_64 and aarch64 from that tag, with Bun 1.4.2,
+herdr 0.9.3 and remote bundle protocol 43. Node 22.23.4 (with npm) comes from
+the digest-pinned official image in `container/Dockerfile`; the Node PTY fallback
+uses upstream's pinned @lydell/node-pty 1.1.0 target-native prebuild.
+
+The retained container-root SSH fix keeps HOME and the root account's passwd
+home at `/data/home`, migrates older private home ownership once, and preserves
+existing keys, SSH aliases and workspaces. Package versions use
+`<upstream version>-<build>`; a new upstream version resets the build to `0001`.
 
 ## Runtime and access
 
@@ -61,7 +61,7 @@ vulnerabilities. Containers do not provide per-administrator isolation.
 
 ## SSH setup
 
-Settings > Remote PCs > Add PC shows **SSH keys and configuration**, the
+Settings > Devices and PCs > Add a connection > SSH > Add PC shows **SSH keys and configuration**, the
 package's public key and a **Copy public key** button. On first start the launcher
 creates an Ed25519 key in `/data/home/.ssh/id_ed25519` and its `.pub` file, using
 private directory/file modes. Existing private keys are retained and never
@@ -238,3 +238,23 @@ Device acceptance must separately verify native-to-container upgrade, fresh
 administrator entry, anonymous/nonadmin rejection, an agent installed from an
 Ovis terminal, UID/mount readback and persistence. Static checks alone do not
 establish DSM acceptance. Keep screenshots outside Git.
+
+## Upstream v0.5.1 adapter compatibility
+
+The upgrade was reviewed against upstream's v0.5.0/v0.5.1 changelog and tagged
+source. The new account, relay, desktop and herdr-core features do not replace
+the package's DSM gateway or its bundled herdr TUI runtime. The package keeps
+`OVIS_TAILSCALE_SERVE_ONLY=1`, so upstream's relay and Portal remain blocked;
+`OVIS_AUTO_UPDATE=0` keeps updates with Package Center.
+
+The entrypoint still calls `Bun.serve({fetch})`. The packaging preload therefore
+continues to protect its script and public-key routes with the injected bearer
+credential, request an uncompressed HTML shell before injection, and translate
+known failures in `/api/machines/setup` jobs. The Add PC dialog still uses
+`#machine-connect-form`, `.machine-dialog`, `phase`, `error` and `ssh_output`.
+Its entry now lives under Devices and PCs > Add a connection > SSH. Obsolete
+pre-Ovis environment aliases were removed to match the current naming contract.
+The image writes root's passwd home during construction without running
+`usermod` against the build container's active root process. The remote
+bundle version is read from `shared/machines.ts`; fixtures must use version 43
+for this release instead of the former version 41.

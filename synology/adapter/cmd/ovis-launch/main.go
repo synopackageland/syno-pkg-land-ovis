@@ -2,7 +2,7 @@
 //
 // It makes sure the per-install OVIS_TOKEN exists, turns anonymous usage counts
 // off by default on a first start (see telemetryDefaultOff), then runs two
-// children as the package account:
+// children as the configured container account:
 //
 //   - the bundled herdr (official release binary, `herdr server`), headless,
 //     with its config folder chosen so that it listens on HERDR_SOCKET, the
@@ -159,7 +159,7 @@ func herdrConfigHome(socket string) (string, error) {
 func herdrEnv(env []string, configHome string) []string {
 	out := make([]string, 0, len(env)+2)
 	for _, kv := range env {
-		if hasKey(kv, "OVIS_TOKEN") || hasKey(kv, "HERDR_WEB_TOKEN") || hasKey(kv, "XDG_CONFIG_HOME") || hasKey(kv, "SHELL") || strings.HasPrefix(kv, "HERDR_") {
+		if hasKey(kv, "OVIS_TOKEN") || hasKey(kv, "XDG_CONFIG_HOME") || hasKey(kv, "SHELL") || strings.HasPrefix(kv, "HERDR_") {
 			continue
 		}
 		out = append(out, kv)
@@ -177,12 +177,12 @@ func paneShell() string {
 }
 
 // ovisEnv is the runtime environment for Ovis: OVIS_TOKEN set to t (any
-// inherited copy, and its pre-rename alias, removed) and OVIS_HERDR_BIN naming
+// inherited copy removed) and OVIS_HERDR_BIN naming
 // the bundled herdr, which Ovis runs for pane observation and terminals.
 func ovisEnv(env []string, t, herdrBin string) []string {
 	out := make([]string, 0, len(env)+2)
 	for _, kv := range env {
-		if hasKey(kv, "OVIS_HERDR_BIN") || hasKey(kv, "HERDR_WEB_HERDR_BIN") {
+		if hasKey(kv, "OVIS_HERDR_BIN") {
 			continue
 		}
 		out = append(out, kv)
@@ -190,12 +190,12 @@ func ovisEnv(env []string, t, herdrBin string) []string {
 	return append(withToken(out, t), "OVIS_HERDR_BIN="+herdrBin)
 }
 
-// withToken returns env with OVIS_TOKEN (and its pre-rename alias) set to t
+// withToken returns env with OVIS_TOKEN set to t
 // and any inherited copy removed, so only the package's own token applies.
 func withToken(env []string, t string) []string {
 	out := make([]string, 0, len(env)+1)
 	for _, kv := range env {
-		if hasKey(kv, "OVIS_TOKEN") || hasKey(kv, "HERDR_WEB_TOKEN") {
+		if hasKey(kv, "OVIS_TOKEN") {
 			continue
 		}
 		out = append(out, kv)

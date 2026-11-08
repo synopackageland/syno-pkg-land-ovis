@@ -1,5 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { startBunRelay, type BunRelay } from "./bun.ts";
+import { passPolicy } from "./pass.ts";
+import { RELAY_PASS_HEADER, signRelayPass } from "../shared/relay-pass.ts";
+import { relayPassFromArgs } from "./bun-limits.ts";
 import { SERVER_PROOF_CLOSE } from "../shared/relay-server-proof.ts";
 import { BUFFER_FRAMES, CLOSE, KEEPALIVE_PING, KEEPALIVE_PONG, MAX_CLIENTS, MAX_MESSAGE_BYTES, MAX_PENDING } from "./core.ts";
 import { Peer, answerChallenge, equalBytes, establish, newServer, openPair, openServer, randomServerId, relayUrls } from "./relay-test-client.ts";
@@ -61,7 +64,7 @@ describe("relay over HTTP", () => {
       const server = newServer();
       const url = relayUrls(`ws://127.0.0.1:${limited.port}`, server).control;
       const ok = await openServer(url, server);
-      expect(await ok.json("sync")).toEqual({ type: "sync", connection_ids: [] });
+      expect(await ok.json("sync")).toEqual({ type: "sync", connection_ids: [], warm: expect.stringMatching(/^[0-9a-f]{32}$/) });
       ok.socket.close();
       expect(asked).toEqual(["address:127.0.0.1", "global:all"]);
 
@@ -162,14 +165,14 @@ describe("relay sockets", () => {
     const id = newServer();
     const urls = relayUrls(base, id);
     const first = await openServer(urls.control, id);
-    expect(await first.json("sync")).toEqual({ type: "sync", connection_ids: [] });
+    expect(await first.json("sync")).toEqual({ type: "sync", connection_ids: [], warm: expect.stringMatching(/^[0-9a-f]{32}$/) });
     const paired = await openPair(base, id, first);
     const waiting = await Peer.open(urls.client);
     const { connection_id } = await waiting.json("assigned") as { connection_id: string };
     await first.json("connected");
     const second = await openServer(urls.control, id);
     expect(await first.closeCode("replaced control")).toBe(CLOSE.POLICY);
-    expect(await second.json("sync")).toEqual({ type: "sync", connection_ids: [connection_id] });
+    expect(await second.json("sync")).toEqual({ type: "sync", connection_ids: [connection_id], warm: expect.stringMatching(/^[0-9a-f]{32}$/) });
     // the pair already attached keeps working without its control socket
     paired.client.socket.send("still");
     expect(await paired.data.next()).toBe("still");
@@ -296,5 +299,42 @@ describe("relay admission over real sockets", () => {
     // the newcomer is served
     const data = await openServer(urls.data(connection_id), pc, connection_id);
     await establish({ client: phone, data });
+  });
+});
+
+
+describe("relay pass on the Bun relay", () => {
+  test("enforced from flags: a PC socket without a pass closes 4402, one with its pass is let in and told so", async () => {
+    const pair = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]) as CryptoKeyPair;
+    const raw = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
+    const keys = `0badc0de:${Array.from(raw, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+    const pass = await passPolicy(relayPassFromArgs(["--pass-mode", "enforce", "--pass-keys", keys], {}));
+    const enforced = startBunRelay({ port: 0, pass });
+    try {
+      const server = newServer();
+      const urls = relayUrls(`ws://127.0.0.1:${enforced.port}`, server);
+      const refused = await Peer.open(urls.control);
+      expect(await refused.closed).toEqual({ code: 4402, reason: "relay pass required" });
+      const token = await signRelayPass(pair.privateKey, "0badc0de", server.serverId, Math.floor(Date.now() / 1000));
+      const control = new Peer(new WebSocket(urls.control, { headers: { [RELAY_PASS_HEADER]: token } } as unknown as string[]));
+      await control.ready;
+      const answer = answerChallenge(await control.next("server_challenge"), server, null);
+      control.socket.send(answer!);
+      expect((await control.json("sync"))["relay_pass"]).toEqual({ state: "ok", enforce_at: null });
+      control.socket.close();
+    } finally { await enforced.stop(); }
+  });
+
+  test("an unknown mode is off; other pass settings that do not parse stop the Bun relay from starting", async () => {
+    expect((await passPolicy(relayPassFromArgs(["--pass-mode", "strict"], {}))).mode).toBe("off");
+    const pair = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]) as CryptoKeyPair;
+    const hex = Array.from(new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    for (const at of ["04 Dec 2027 00:12:00 GMT", "2027-02-30T00:00:00Z", "2027-01-01", "2027-01-01T00:00:00+09:00"]) {
+      await expect(passPolicy({ RELAY_PASS_MODE: "grace", RELAY_PASS_KEYS: `0badc0de:${hex}`, RELAY_PASS_ENFORCE_AT: at })).rejects.toThrow();
+    }
+    expect((await passPolicy({ RELAY_PASS_MODE: "grace", RELAY_PASS_KEYS: `0badc0de:${hex}`, RELAY_PASS_ENFORCE_AT: "2027-01-01T00:00:00Z" })).enforceAt).toBe(Date.parse("2027-01-01T00:00:00Z"));
+    await expect(passPolicy(relayPassFromArgs(["--pass-mode", "enforce"], {}))).rejects.toThrow();
+    await expect(passPolicy(relayPassFromArgs([], { RELAY_PASS_MODE: "grace", RELAY_PASS_KEYS: "0badc0de:00", RELAY_PASS_ENFORCE_AT: "soon" }))).rejects.toThrow();
+    expect((await passPolicy(relayPassFromArgs([], {}))).mode).toBe("off");
   });
 });
