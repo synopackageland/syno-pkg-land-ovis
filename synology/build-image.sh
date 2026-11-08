@@ -34,6 +34,7 @@ if [[ ${SKIP_SOURCE_BUILD:-0} != 1 ]]; then
   git -C "$source_root" archive "$commit" | tar -x -C "$prep/source"
   cp "$packaging/build-source.sh" "$packaging/prune-runtime.mjs" "$prep/packaging/"
   cp -R "$packaging/adapter" "$prep/packaging/adapter"
+  cp -R "$packaging/runtime" "$prep/packaging/runtime"
   docker buildx build --builder "$builder" \
     --build-arg "https_proxy=${BUILD_PROXY:-}" \
     --file "$packaging/container/prepare.Dockerfile" \

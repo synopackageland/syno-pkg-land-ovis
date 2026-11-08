@@ -73,6 +73,9 @@ func run() error {
 	if err := telemetryDefaultOff(os.Getenv("OVIS_STATE_DIR")); err != nil {
 		return fmt.Errorf("telemetry default: %w", err)
 	}
+	if err := prepareSSH(os.Getenv("HOME")); err != nil {
+		return fmt.Errorf("SSH setup: %w", err)
+	}
 	socket := os.Getenv("HERDR_SOCKET")
 	configHome, err := herdrConfigHome(socket)
 	if err != nil {
@@ -90,7 +93,7 @@ func run() error {
 		fmt.Fprintln(os.Stderr, "ovis-launch: herdr did not open its socket in time; starting Ovis anyway")
 	}
 
-	ovis := exec.Command(bun, filepath.Join(app, "server", "index.ts"))
+	ovis := exec.Command(bun, "--preload", filepath.Join(payload, "runtime", "preload.mjs"), filepath.Join(app, "server", "index.ts"))
 	ovis.Dir = app
 	ovis.Env = ovisEnv(os.Environ(), t, herdrBin)
 	ovis.Stdout, ovis.Stderr = os.Stdout, os.Stderr

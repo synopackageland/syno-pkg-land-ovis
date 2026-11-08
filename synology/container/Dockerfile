@@ -32,7 +32,8 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
     && ln -s /opt/ovis/bun /usr/local/bin/bun \
     && ln -s /opt/ovis/herdr /usr/local/bin/herdr \
-    && mkdir /data && chmod 1777 /data
+    && mkdir /data && chmod 1777 /data \
+    && usermod --home /data/home root
 COPY LICENSES/ /usr/share/doc/ovis-runtime/
 ENV HOME=/data/home
 USER 1000:1000
