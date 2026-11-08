@@ -67,7 +67,5 @@ test('container root is explicit with only retained-data migration capabilities'
  assert.deepEqual(policy.run_as.capabilities,['DAC_OVERRIDE', 'CHOWN']);
  assert.equal(policy.storage_init.directories,undefined);
  assert.deepEqual(policy.storage_init.runtime.environment.OVIS_TOKEN,{secret:'ovis'});
- const image=readFileSync(new URL('../../container/Dockerfile',import.meta.url),'utf8');
- assert.match(image,/usermod --home \/data\/home root/);
  assert.equal(parse(compose).services.ovis.environment.HOME,'/data/home');
 });

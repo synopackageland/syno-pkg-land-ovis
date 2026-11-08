@@ -33,7 +33,9 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && ln -s /opt/ovis/bun /usr/local/bin/bun \
     && ln -s /opt/ovis/herdr /usr/local/bin/herdr \
     && mkdir /data && chmod 1777 /data \
-    && usermod --home /data/home root
+    && awk -F: 'BEGIN {OFS=":"} $1=="root" {$6="/data/home"} {print}' /etc/passwd > /etc/passwd.ovis \
+    && cat /etc/passwd.ovis > /etc/passwd && rm /etc/passwd.ovis \
+    && test "$(getent passwd root | cut -d: -f6)" = /data/home
 COPY LICENSES/ /usr/share/doc/ovis-runtime/
 ENV HOME=/data/home
 USER 1000:1000
