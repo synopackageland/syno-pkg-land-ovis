@@ -44,10 +44,20 @@ const (
 )
 
 func main() {
-	if err := run(); err != nil {
+	if err := launch(); err != nil {
 		fmt.Fprintf(os.Stderr, "ovis-launch: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func launch() error {
+	if err := prepareHome("/data"); err != nil {
+		return err
+	}
+	if err := prepareIdentity(os.Getenv("HOME")); err != nil {
+		return err
+	}
+	return run()
 }
 
 func run() error {
@@ -85,7 +95,7 @@ func run() error {
 	signals := make(chan os.Signal, 4)
 	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
 
-	h := &herdrChild{bin: herdrBin, env: herdrEnv(os.Environ(), configHome), socket: socket}
+	h := &herdrChild{bin: herdrBin, env: herdrEnv(os.Environ(), configHome), socket: socket, cwd: os.Getenv("OVIS_WORKSPACE")}
 	if err := h.start(); err != nil {
 		// Ovis still runs: its sidebar then says this PC's herdr is away, and remote PCs work
 		fmt.Fprintf(os.Stderr, "ovis-launch: herdr: %v\n", err)
@@ -232,6 +242,7 @@ func waitSocket(socket string, timeout time.Duration) bool {
 // exits on its own, until stop.
 type herdrChild struct {
 	bin, socket string
+	cwd         string
 	env         []string
 
 	mu       sync.Mutex
@@ -271,7 +282,10 @@ func (h *herdrChild) start() error {
 func (h *herdrChild) spawn() (*exec.Cmd, error) {
 	cmd := exec.Command(h.bin, "server")
 	cmd.Env = h.env
-	cmd.Dir = filepath.Dir(filepath.Dir(h.socket)) // the config home, created with the socket folder
+	cmd.Dir = h.cwd
+	if cmd.Dir == "" {
+		cmd.Dir = filepath.Dir(filepath.Dir(h.socket))
+	}
 	cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
 	// its own process group: a terminal signal to the launcher's group does not reach it first
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

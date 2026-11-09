@@ -55,3 +55,28 @@ func TestSSHHomeRejectsLinksAndRetainsExistingKeys(t *testing.T) {
 		t.Fatal("existing private key changed")
 	}
 }
+
+func TestSSHDirectoryNarrowsInheritedPermissions(t *testing.T) {
+	if _, err := exec.LookPath("ssh-keygen"); err != nil {
+		t.Skip("ssh-keygen unavailable")
+	}
+	home := t.TempDir()
+	dir := filepath.Join(home, ".ssh")
+	if err := os.Mkdir(dir, 0777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0777); err != nil {
+		t.Fatal(err)
+	}
+	if err := prepareSSH(home); err != nil {
+		t.Fatal(err)
+	}
+	st, err := os.Stat(dir)
+	if err != nil || st.Mode().Perm() != 0700 {
+		t.Fatal("SSH directory is not private", err)
+	}
+	key, err := os.Stat(filepath.Join(dir, "id_ed25519"))
+	if err != nil || key.Mode().Perm() != 0600 {
+		t.Fatal("SSH key is not private", err)
+	}
+}

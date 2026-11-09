@@ -12,8 +12,8 @@ for platform in ${OVIS_TEST_PLATFORMS:-linux/amd64 linux/arm64}; do
     --entrypoint /bin/sh "$OVIS_TEST_IMAGE" -s <<'CHECK'
 set -eu
 test "$(id -u)" = 1000
-# OpenSSH reads passwd, independently of HOME.
-test "$(getent passwd root | cut -d: -f6)" = /data/home
+# Arbitrary package identities are supplied to OpenSSH by the launcher.
+test -r /usr/local/lib/libnss_wrapper.so
 for tool in bash git ssh curl unzip xz ps node npm npx bun herdr \
   jq rg fd less file tree zip rsync wget nano python python3 pip3 sqlite3 ping; do
   command -v "$tool" >/dev/null || { echo "Missing runtime tool: $tool" >&2; exit 1; }

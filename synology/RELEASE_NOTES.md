@@ -1,3 +1,16 @@
+# Ovis 0.5.1-0003
+
+Select an existing NAS folder, including nested subfolders, for HOME and local
+workspaces. HOME stays at `/data/home`; the default workspace is `/data/workspace`.
+The container runs as the DSM package UID:GID, with all capabilities dropped
+and no added capabilities. OpenSSH account lookup uses a private nonroot runtime
+account mapping. SDK 0.53.23 and CLI 0.52.15 provide the folder chooser and
+startup permission Dialog with Retry.
+
+This storage change supports fresh installations. No old volume is mounted,
+imported, chowned or deleted. The selected NAS folder and its contents remain
+after uninstall. Ovis stays unlisted; this build does not change the catalog.
+
 # Ovis 0.5.1-0002
 
 Improve page loading reliability when signing in with SDK 0.53.21 and CLI 0.52.13.
