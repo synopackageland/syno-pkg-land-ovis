@@ -3,34 +3,32 @@
 This folder packages unmodified [Ovis](https://github.com/devswha/ovis) behind
 DSM administrator sign-in. Upstream files outside `synology/` remain unchanged.
 
-Version 0.5.1-0001 packages upstream v0.5.1 without modifying its source.
-It uses SDK 0.53.21 (Compose and identity gateway) and CLI 0.52.13.
-The runtime is rebuilt for x86_64 and aarch64 from that tag, with Bun 1.4.2,
-herdr 0.9.3 and remote bundle protocol 43. Node 22.23.4 (with npm) comes from
-the digest-pinned official image in `container/Dockerfile`; the Node PTY fallback
-uses upstream's pinned @lydell/node-pty 1.1.0 target-native prebuild.
+Version 0.5.1-0003 packages unmodified upstream v0.5.1 with SDK 0.53.23
+and CLI 0.52.15. The runtime is built for x86_64 and aarch64, with Bun 1.4.2,
+herdr 0.9.3 and remote bundle protocol 43. Node 22.23.4 (with npm) and the
+Node PTY fallback retain the immutable previous runtime as their tool layer.
 
-The retained container-root SSH fix keeps HOME and the root account's passwd
-home at `/data/home`, migrates older private home ownership once, and preserves
-existing keys, SSH aliases and workspaces. Package versions use
-`<upstream version>-<build>`; a new upstream version resets the build to `0001`.
+Fresh installations are the supported path for this storage change. Select an
+existing NAS folder in the install wizard. DSM 7.2.2 and newer use the native
+folder chooser; DSM 7.2.1 uses a share dropdown and relative subfolder field.
+The folder must exist. The SDK grants the package account access to the share
+and checks the selected folder at startup; missing access uses its permission
+Dialog and Retry. This grant covers the share even when a subtree is mounted.
 
 ## Runtime and access
 
-The SDK's official Container Manager project worker assigns UID/GID 0 inside the
-Ovis container through the explicit `run_as: container-root` service policy.
-Host package hooks, the Compose control tool and the identity gateway remain the
-DSM package account. This option does not install an executor or request SDK
-administrator authorization, rootOps approval or DSM password reconfirmation.
-Normal DSM administrator sign-in remains the App entry gate.
+The SDK assigns the DSM package UID:GID to the Ovis container. Shells,
+herdr, agents and SSH all run as that identity. `cap_drop: [ALL]` and
+no-new-privileges are enabled, with no added capabilities, privileged mode,
+Docker socket or host network. The root filesystem is read-only; `/tmp` is an
+executable, bounded tmpfs. A separate 1 MiB tmpfs at `/run/ovis` holds the
+SDK initializer’s private runtime directory. Container Manager may add NET_BIND_SERVICE to the
+bounding set; effective capabilities must remain zero for the package user.
 
-The root filesystem is read-only. The wrapper declares `cap_drop: [ALL]` and
-explicitly adds only `DAC_OVERRIDE` and `CHOWN`, with no-new-privileges enabled.
-The observed DSM Container Manager runtime also supplies `NET_BIND_SERVICE`,
-which was present in the previous package runtime too. There is no privileged mode, host
-network, published container port, device, Docker socket or Shared Folder mount.
-The only writable persistent mount is the project's own named data volume.
-The SDK mounts its initializer and generated authentication seed read-only.
+The persistent mount is the selected NAS folder at `/data`, with read/write
+access. The launcher creates `home/` and `workspace/` as the package account,
+without chown or changing the selected parent folder. Existing files stay in
+place. No named volume is declared or mounted and no legacy data is imported.
 
 The private bridge admits HTTPS traffic only through the host SDK gateway:
 
@@ -45,26 +43,26 @@ The gateway adapter reads the SDK-generated private runtime seed, which the SDK
 also injects into Ovis. It never sends that credential to the browser. The seed
 rotates when the installed package generation is replaced; home data is retained.
 
-`HOME=/data/home` holds agents, npm's user prefix (`~/.local`), workspaces,
-herdr configuration and Ovis state. `/data` is a sticky writable mount base;
-the launcher creates private home subdirectories. The initial image UID 1000 is
-only a standalone default; DSM explicitly assigns container UID 0. On DSM without
-user namespace remapping this is host UID 0, with only the declared volume and
-read-only SDK mounts visible.
-The container has internet egress for agent installation and remote PCs.
-The memory limit is 2 GiB and CPU scheduling weight is 512. DSM kernels
-without CFS quota support reject a hard `cpus` limit; CPU shares allow the
-container to start on those systems. Large agent workloads may need more memory.
+`HOME=/data/home` holds agents, npm's user prefix (`~/.local`), SSH
+configuration, herdr configuration and Ovis state. `/data/workspace` is the
+default directory for new local workspaces; explicit paths keep their meaning.
+The read-only runtime uses libnss_wrapper to supply the assigned package UID's
+account and HOME to libc/OpenSSH, with private temporary passwd/group files.
+This needs no root process or writable `/etc/passwd` at runtime.
 
-These limits protect the host from ordinary shell writes, not from kernel
-vulnerabilities. Containers do not provide per-administrator isolation.
+The container has internet egress for agent installation and remote PCs. Its
+memory limit is 2 GiB and CPU scheduling weight is 512. DSM kernels without CFS
+quota support use CPU shares. All admitted administrators share this package
+identity and its home; there is no per-administrator filesystem isolation.
 
 ## SSH setup
 
 Settings > Devices and PCs > Add a connection > SSH > Add PC shows **SSH keys and configuration**, the
 package's public key and a **Copy public key** button. On first start the launcher
 creates an Ed25519 key in `/data/home/.ssh/id_ed25519` and its `.pub` file, using
-private directory/file modes. Existing private keys are retained and never
+private directory/file modes. The launcher explicitly applies mode 0700 through
+an owned, no-follow `.ssh` directory descriptor because DSM ACL inheritance can
+override the mode requested by mkdir. Existing private keys are retained and never
 overwritten. The private key is never returned by the setup endpoint.
 
 Copy the public key to `~/.ssh/authorized_keys` for the account on the remote PC,
@@ -123,6 +121,11 @@ hardcoded. `OUTPUT=load PLATFORMS=linux/amd64` supports a local single-architect
 smoke build. `ARCHIVE=/path/to/image.oci.tar` also exports a multi-architecture
 OCI archive during a push build; `docker save` can export that image for transfer to a test NAS.
 `SKIP_SOURCE_BUILD=1` reuses already verified local payloads during iteration.
+The image reuses the previous released runtime's immutable system/tool layer,
+replaces the entire application payload, and restores the unchanged target-native
+PTY packages. libnss-wrapper 1.1.15-2 comes from official Ubuntu archives pinned
+by `container/nss-wrapper.sha256`; no package scripts run. `BUILD_CA_BUNDLE`
+optionally supplies a trusted CA bundle to the build-host archive download.
 `KEEP_BUILDER=1` keeps only that run's builder/cache for an active retry; finish
 with `docker buildx prune --builder "$BUILD_PREFIX-ovis-builder" --all --force`
 and `docker buildx rm "$BUILD_PREFIX-ovis-builder"`.
@@ -175,32 +178,20 @@ also work. It retains `nosuid` and `nodev`; the root filesystem stays read-only.
 No compiler, sudo, Docker client or system daemon is installed. Agent installers
 needing extra system packages require a future image revision.
 
-## Upgrade and data
+## Storage mapping and retention
 
-Native releases stored their home and Ovis/herdr state directly in the package
-var directory. The container uses a named volume; this version does not copy old
-native state automatically. Retain the native var directory for recovery and
-set up remote PCs/agents again in the new container home. Do not delete legacy
-state or existing volumes during upgrade. Container stop/start and later upgrades
-reuse the same named volume. SDK uninstall retains named volumes even when its
-delete-data option is selected; the wizard reports that boundary.
+| Key | NAS source | Container path | Access | Purpose |
+| --- | --- | --- | --- | --- |
+| data | Selected folder | /data | rw | The SDK install-selected folder bind |
+| data | Selected folder/home | /data/home | rw | HOME, SSH keys, agents, Ovis and herdr state |
+| data | Selected folder/workspace | /data/workspace | rw | Default local workspace |
 
-### Upgrade from package-UID containers
-
-`DAC_OVERRIDE` lets the startup adapter traverse retained mode-0700 directories
-and read the package-owned runtime seed. `CHOWN` permits a one-time migration of
-`/data/home` to UID/GID 0, needed both for OpenSSH's config ownership check and
-Git's repository ownership check. Modes and contents are retained. The adapter
-walks only this App's named-volume home through a confined filesystem root,
-changes link ownership without following links, and refuses filesystem boundaries.
-It writes a private version marker only after the walk succeeds; interrupted
-migration resumes safely and later starts skip completed migration.
-
-No host root hook, FOWNER capability or Git safe.directory wildcard is used.
-The capabilities apply to files visible in the container; no writable host or
-Shared Folder bind is declared. The root filesystem and SDK bind mounts stay
-read-only. Downgrading to an older
-package-UID runtime requires a separate recovery procedure and is not verified.
+The previous package used `ovis_data`. This version performs no migration,
+ownership transfer or compatibility conversion. A fresh installation creates
+new home/workspace children in the selected folder. Historical named volumes
+remain outside this package's mounts and are not deleted by it.
+Uninstall retains the selected folder and its contents. DSM's data-share grant
+may also remain; administrators manage retained permissions in DSM.
 
 ## Distribution choices
 
@@ -234,9 +225,9 @@ no capabilities and no network. It verifies the tools and symlinks, creates a
 temporary venv and installs/imports a synthetic pure-Python wheel offline.
 `OVIS_TEST_PLATFORMS=linux/amd64` selects a native-only development check;
 the default also needs arm64 emulation on an amd64 build host.
-Device acceptance must separately verify native-to-container upgrade, fresh
-administrator entry, anonymous/nonadmin rejection, an agent installed from an
-Ovis terminal, UID/mount readback and persistence. Static checks alone do not
+Device acceptance verifies a fresh installation with a two-level subfolder,
+administrator entry, SSH/herdr operation, UID/mount readback and package-owned
+HOME/workspace files. Static checks alone do not
 establish DSM acceptance. Keep screenshots outside Git.
 
 ## Upstream v0.5.1 adapter compatibility
@@ -254,7 +245,6 @@ known failures in `/api/machines/setup` jobs. The Add PC dialog still uses
 `#machine-connect-form`, `.machine-dialog`, `phase`, `error` and `ssh_output`.
 Its entry now lives under Devices and PCs > Add a connection > SSH. Obsolete
 pre-Ovis environment aliases were removed to match the current naming contract.
-The image writes root's passwd home during construction without running
-`usermod` against the build container's active root process. The remote
+The runtime supplies the package account through libnss_wrapper. The remote
 bundle version is read from `shared/machines.ts`; fixtures must use version 43
 for this release instead of the former version 41.

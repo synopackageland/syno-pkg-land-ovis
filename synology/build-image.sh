@@ -48,6 +48,27 @@ rm -rf "$context"
 mkdir -p "$context/payload"
 cp "$packaging/container/Dockerfile" "$context/Dockerfile"
 cp -R "$packaging/LICENSES" "$context/LICENSES"
+# The only added system dependency is a library-only official Ubuntu package.
+# Verify the archive before it enters the context; never relax TLS verification.
+mkdir -p "$context/support" "$work/downloads"
+for cpu in amd64 arm64; do
+  archive="libnss-wrapper_1.1.15-2_$cpu.deb"
+  sha=$(awk -v file="$archive" '$2 == file {print $1}' "$packaging/container/nss-wrapper.sha256")
+  [[ $sha =~ ^[a-f0-9]{64}$ ]] || exit 2
+  case $cpu in
+    amd64) source=https://archive.ubuntu.com/ubuntu ;;
+    arm64) source=https://ports.ubuntu.com/ubuntu-ports ;;
+  esac
+  file="$work/downloads/$archive"
+  if [[ ! -f $file ]] || [[ $(sha256sum "$file" | cut -d' ' -f1) != "$sha" ]]; then
+    ca=()
+    [[ -z ${BUILD_CA_BUNDLE:-} ]] || ca=(--cacert "$BUILD_CA_BUNDLE")
+    curl -fsSL --retry 3 "${ca[@]}" "$source/pool/universe/n/nss-wrapper/$archive" -o "$file.part"
+    [[ $(sha256sum "$file.part" | cut -d' ' -f1) == "$sha" ]] || { echo "libnss-wrapper checksum mismatch" >&2; exit 1; }
+    mv "$file.part" "$file"
+  fi
+  cp "$file" "$context/support/libnss-wrapper_$cpu.deb"
+done
 for pair in x86_64:amd64 aarch64:arm64; do
   arch=${pair%%:*}; target=${pair##*:}
   cp -R "$packaging/daemon/$arch" "$context/payload/$target"

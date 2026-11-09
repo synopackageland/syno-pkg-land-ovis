@@ -1,11 +1,11 @@
 {
-  "en": "Improve page loading reliability when signing in",
-  "zh-TW": "改善登入時的頁面載入穩定性",
-  "zh-CN": "改善登录时的页面加载稳定性",
-  "ja": "ログイン時のページ読み込みの安定性を改善",
-  "ko": "로그인 시 페이지 로딩 안정성 개선",
-  "de": "Zuverlässigkeit beim Laden der Seite während der Anmeldung verbessern",
-  "fr": "Améliorer la fiabilité du chargement des pages lors de la connexion",
-  "es": "Mejorar la fiabilidad de carga de las páginas al iniciar sesión",
-  "it": "Migliorare l’affidabilità del caricamento delle pagine durante l’accesso"
+  "en": "Choose a NAS subfolder for HOME and workspaces, run as the package account without root capabilities",
+  "zh-TW": "可選擇 NAS 子資料夾儲存 HOME 與工作區，改以套件帳號執行並移除 root capabilities",
+  "zh-CN": "可选择 NAS 子文件夹存储 HOME 和工作区，改以套件账户运行并移除 root capabilities",
+  "ja": "HOME とワークスペース用の NAS サブフォルダーを選択し、root 権限なしのパッケージアカウントで実行",
+  "ko": "HOME 및 작업 공간에 NAS 하위 폴더를 선택하고 root 권한 없이 패키지 계정으로 실행",
+  "de": "NAS-Unterordner für HOME und Arbeitsbereiche wählen und ohne Root-Berechtigungen als Paketkonto ausführen",
+  "fr": "Choisir un sous-dossier NAS pour HOME et les espaces de travail, avec le compte du paquet sans privilèges root",
+  "es": "Elegir una subcarpeta del NAS para HOME y los espacios de trabajo, con la cuenta del paquete sin privilegios root",
+  "it": "Scegliere una sottocartella NAS per HOME e gli spazi di lavoro, usando l’account del pacchetto senza privilegi root"
 }
