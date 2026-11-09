@@ -1,82 +1,68 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
-	"io/fs"
 	"os"
-	"syscall"
 )
 
-// migrateHomeToRoot adopts only this App's named-volume home, once. WalkDir
-// never follows symlinks, Root confines parent traversal, Lchown changes the
-// entry itself, and filesystem boundaries are refused. A partial failure leaves
-// no completion marker so the next start resumes the idempotent walk.
-func migrateHomeToRoot(home string) error {
-	if os.Geteuid() != 0 {
-		return nil
+// The selected folder already exists and DSM grants access. Create only this
+// App's two children as the package UID, without changing the selected base or
+// adopting other users' directories.
+func prepareHome(base string) error {
+	if os.Geteuid() == 0 {
+		return fmt.Errorf("Ovis requires the nonroot package UID")
 	}
-	st, err := os.Lstat(home)
-	if err != nil || !st.IsDir() || st.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("Ovis HOME must be a real private directory")
+	st, err := os.Lstat(base)
+	if err != nil {
+		return err
 	}
-	root, err := os.OpenRoot(home)
+	if !st.IsDir() || st.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("selected data folder must be a real directory")
+	}
+	root, err := os.OpenRoot(base)
 	if err != nil {
 		return err
 	}
 	defer root.Close()
-	const marker = ".ovis-root-home-v1"
-	if mark, err := root.Lstat(marker); err == nil {
-		owner, ok := mark.Sys().(*syscall.Stat_t)
-		if !mark.Mode().IsRegular() || !ok || owner.Uid != 0 || owner.Gid != 0 || mark.Mode().Perm() != 0600 || mark.Size() != 2 {
-			return fmt.Errorf("Ovis home migration marker is invalid")
+	for _, name := range []string{"home", "workspace"} {
+		if err = root.Mkdir(name, 0700); err != nil && !os.IsExist(err) {
+			return fmt.Errorf("create %s: %w", name, err)
 		}
-		raw, err := root.ReadFile(marker)
-		if err != nil || string(raw) != "1\n" {
-			return fmt.Errorf("Ovis home migration marker is invalid")
-		}
-		return nil
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	device := st.Sys().(*syscall.Stat_t).Dev
-	err = fs.WalkDir(root.FS(), ".", func(name string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		info, err := entry.Info()
+		info, err := root.Lstat(name)
 		if err != nil {
 			return err
 		}
-		owner, ok := info.Sys().(*syscall.Stat_t)
-		if !ok || owner.Dev != device {
-			return fmt.Errorf("Ovis home migration cannot cross a filesystem boundary")
+		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("%s must be a real directory", name)
 		}
-		if owner.Uid == 0 && owner.Gid == 0 {
-			return nil
+		// Exclusive creation tests actual package-account write access, including ACLs.
+		dir, err := root.OpenRoot(name)
+		if err != nil {
+			return err
 		}
-		return root.Lchown(name, 0, 0)
-	})
-	if err != nil {
-		return fmt.Errorf("Ovis home ownership migration failed: %w", err)
+		probeName := ".ovis-write-" + rand.Text()
+		probe, err := dir.OpenFile(probeName, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+		if err != nil {
+			dir.Close()
+			return fmt.Errorf("%s must be writable by the package account: %w", name, err)
+		}
+		_, err = probe.WriteString("writable\n")
+		if err == nil {
+			err = probe.Sync()
+		}
+		closeErr := probe.Close()
+		if err == nil {
+			err = closeErr
+		}
+		removeErr := dir.Remove(probeName)
+		if err == nil {
+			err = removeErr
+		}
+		dir.Close()
+		if err != nil {
+			return err
+		}
 	}
-	f, err := root.OpenFile(marker, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		return err
-	}
-	if _, err = f.WriteString("1\n"); err == nil {
-		err = f.Sync()
-	}
-	if e := f.Close(); err == nil {
-		err = e
-	}
-	if err != nil {
-		root.Remove(marker)
-		return err
-	}
-	dir, err := root.Open(".")
-	if err != nil {
-		return err
-	}
-	defer dir.Close()
-	return dir.Sync()
+	return nil
 }

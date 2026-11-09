@@ -8,7 +8,7 @@ schema: 2
 package: Ovis
 version: 0.5.1
 # The build resets to 1 with every upstream release (INFO <upstream>-0001).
-build: 2
+build: 3
 displayname: Ovis
 description: Herdr's coding agents in your browser and on your phone, served from your NAS.
 # Upstream's sheep (app/assets/ovis-sheep.png), unchanged, on a rounded DSM-style
@@ -30,24 +30,29 @@ entry: admin-only
 # The gateway's public HTTPS port is chosen in the install wizard.
 install:
   ports: true
+  sharedFolder: {mode: select, key: data, permission: rw, picker: folder}
 
-# Root is explicitly opted in for the container only; DSM helpers retain the package UID.
+# The runtime uses only the fixed package identity and selected NAS folder.
 compose:
-  sdk: 0.53.21
+  sdk: 0.53.23
   files: [compose.yaml]
   helpers:
     x86_64: helpers/x86_64
     aarch64: helpers/aarch64
   services:
     ovis:
-      run_as:
-        mode: container-root
-        reason: Resolve the SSH account and migrate retained private home data to container root
-        capabilities: [DAC_OVERRIDE, CHOWN]
+      run_as: {mode: package}
       storage_init:
+        directories: [{base: /run/ovis, path: runtime}]
         runtime:
           environment:
             OVIS_TOKEN: {secret: ovis}
+  shares:
+    data:
+      select: install
+      picker: folder
+      permission: rw
+      mounts: [{service: ovis, target: /data}]
   web:
     service: ovis
     port: 37317
@@ -55,7 +60,7 @@ compose:
   network: {egress: internet}
 
 identity_gateway:
-  sdk: 0.53.21
+  sdk: 0.53.23
   # A DSM administrator signs in; the fixed token adapter then supplies Ovis's
   # own proxy credential (Authorization: Bearer <OVIS_TOKEN>), the sign-in
   # proxy setup upstream documents. The browser never receives the token, and
@@ -90,17 +95,18 @@ metadata:
       herdr sessions. On DSM it runs as the always-on connection server: add your
       PCs under Settings > Remote PCs and Ovis reaches their herdr sessions over
       SSH. The NAS also runs a bundled herdr of its own, so its sidebar row works
-      and shells and agents run inside an Ubuntu container as root, explicitly opted in for SSH account lookup and retained data.
+      and shells and agents run as the package account inside an Ubuntu container.
+      HOME and the default workspace use the NAS folder selected during installation.
       It is for DSM administrators only: the icon is shown only to
       administrators, every request goes through the DSM administrator gate,
       and all administrators share one Ovis identity. The Ovis relay and Portal
       are disabled. Anonymous usage counts are off by default (Settings > About can
-      turn them on), and updates come only from Package Center.
+      turn them on), and updates come only from Package Center
     zh-TW: |-
       Ovis 把電腦上的 coding agent 帶到瀏覽器和手機：對話、提示與核准卡片、推播
       通知和即時終端機，適用於 herdr 工作階段。在 DSM 上它是一直開機的連線伺服器：
       在 Settings > Remote PCs 加入電腦，Ovis 便透過 SSH 連到這些電腦的 herdr 工作
-      階段。NAS 本身也執行套件內附的 herdr，所以側欄中 NAS 本機那一列可正常使用；shell 與 agent 在明確啟用 root 的 Ubuntu 容器內執行，以支援 SSH 帳號查詢與既有資料存取。僅限 DSM 管理員：只有管理員看得到圖示，每個請求都經過
+      階段。NAS 本身也執行套件內附的 herdr，所以側欄中 NAS 本機那一列可正常使用；shell 與 agent 在 Ubuntu 容器內以套件帳號執行，HOME 與預設工作區使用安裝時所選的 NAS 資料夾。僅限 DSM 管理員：只有管理員看得到圖示，每個請求都經過
       DSM 管理員驗證，所有管理員共用同一個 Ovis 身分；Ovis relay 與 Portal 已停用。匿名使用統計預設關閉（可在 Settings > About 開啟），更新只透過套件中心
 
 i18n:
@@ -116,4 +122,4 @@ i18n:
     es: { description: "Los agentes de código de herdr en tu navegador y tu teléfono, servidos desde tu NAS" }
     it: { description: "Gli agenti di coding di herdr nel browser e sul telefono, serviti dal tuo NAS" }
 
-capabilities: {}
+capabilities: {composeMounts: true}

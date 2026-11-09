@@ -52,20 +52,20 @@ test('the icon is drawn per size from icon_256.png down', () => {
   line(/^icon: assets\/icon$/m);
 });
 
-// Commas in an unquoted YAML flow list become separate, invalid mount targets.
-test('DSM storage uses an explicit local volume and one bounded tmpfs mount', () => {
-  assert.equal(parse(compose).volumes.data.driver, 'local');
-  assert.deepEqual(parse(compose).services.ovis.tmpfs,
-    ['/tmp:rw,exec,nosuid,nodev,size=536870912,mode=1777']);
-});
-
-
-test('container root is explicit with only retained-data migration capabilities', () => {
- const m=parse(manifest);const policy=m.compose.services.ovis;
- assert.equal(policy.run_as.mode,'container-root');
- assert.ok(policy.run_as.reason);
- assert.deepEqual(policy.run_as.capabilities,['DAC_OVERRIDE', 'CHOWN']);
- assert.equal(policy.storage_init.directories,undefined);
- assert.deepEqual(policy.storage_init.runtime.environment.OVIS_TOKEN,{secret:'ovis'});
- assert.equal(parse(compose).services.ovis.environment.HOME,'/data/home');
+test('HOME and workspace use the selected folder as the package UID without volumes or capabilities', () => {
+ const m=parse(manifest),c=parse(compose);
+ assert.deepEqual(Object.keys(c.services),['ovis']);
+ assert.equal(c.volumes,undefined);
+ assert.deepEqual(c.services.ovis.volumes,[{type:'tmpfs',target:'/run/ovis',tmpfs:{size:1048576,mode:1023}}]);
+ assert.equal(c.services.ovis.depends_on,undefined);
+ assert.equal(m.compose.services.ovis.run_as.mode,'package');
+ assert.deepEqual(m.install.sharedFolder,{mode:'select',key:'data',permission:'rw',picker:'folder'});
+ assert.deepEqual(m.compose.shares.data,{select:'install',picker:'folder',permission:'rw',mounts:[{service:'ovis',target:'/data'}]});
+ assert.deepEqual(c.services.ovis.cap_drop,['ALL']);
+ assert.equal(c.services.ovis.cap_add,undefined);
+ assert.equal(c.services.ovis.environment.HOME,'/data/home');
+ assert.equal(c.services.ovis.environment.OVIS_WORKSPACE,'/data/workspace');
+ assert.equal(m.compose.sdk,'0.53.23');assert.equal(m.identity_gateway.sdk,'0.53.23');
+ assert.deepEqual(c.services.ovis.tmpfs,['/tmp:rw,exec,nosuid,nodev,size=536870912,mode=1777']);
+ assert.doesNotMatch(manifest+compose,/container-root|DAC_OVERRIDE|CHOWN|\/old|ovis_data/);
 });

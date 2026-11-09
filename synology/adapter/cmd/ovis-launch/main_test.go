@@ -130,3 +130,21 @@ func TestHerdrChildRestartsAfterAnExit(t *testing.T) {
 		t.Fatalf("herdr was started %d times, want a restart", n)
 	}
 }
+
+func TestHerdrUsesTheSelectedWorkspace(t *testing.T) {
+	h, _ := fakeHerdr(t, `pwd > "$OVIS_TEST_CWD"`)
+	h.cwd = t.TempDir()
+	capture := filepath.Join(t.TempDir(), "cwd")
+	h.env = append(h.env, "OVIS_TEST_CWD="+capture)
+	cmd, err := h.spawn()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = cmd.Wait(); err != nil {
+		t.Fatal(err)
+	}
+	actual, err := os.ReadFile(capture)
+	if err != nil || string(actual) != h.cwd+"\n" {
+		t.Fatalf("herdr cwd = %q, %v", actual, err)
+	}
+}

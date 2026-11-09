@@ -1,12 +1,14 @@
 // Install a packaging-owned response adapter before the unmodified Bun entrypoint.
 import {authorized,sshInfo,explainSetupFailure} from './remote-pcs.mjs';
 import {readFileSync} from 'node:fs';
+import {workspaceDefault} from './workspace.mjs';
 const script=readFileSync(new URL('./remote-pcs.js',import.meta.url),'utf8');
 const originalServe=Bun.serve.bind(Bun);
 Bun.serve=function(options) {
  const originalFetch=options.fetch;
  return originalServe({...options,fetch:async function(request,server) {
   const path=new URL(request.url).pathname;
+  request=await workspaceDefault(request,process.env.OVIS_WORKSPACE,process.env.OVIS_TOKEN);
   if (path==='/api/synology/ssh' || path==='/synology/remote-pcs.js') {
    if (!authorized(request,process.env.OVIS_TOKEN)) return new Response('Unauthorized',{status:401});
    if (request.method!=='GET') return new Response('Method not allowed',{status:405,headers:{allow:'GET'}});
