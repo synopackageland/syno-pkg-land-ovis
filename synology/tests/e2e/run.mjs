@@ -34,7 +34,6 @@ for (const key of ['dsmUrl', 'appUrl']) {
 }
 const moduleName = (env, fallback) => process.env[env]
   ? pathToFileURL(resolve(process.env[env])).href : fallback;
-const { dsmAdapter } = await import(moduleName('OVIS_E2E_CLEF_MODULE', '@synology-vincentt/e2e-clef/dsm'));
 const { chromium } = await import(moduleName('OVIS_E2E_PLAYWRIGHT_MODULE', 'playwright'));
 const evidence = resolve(process.env.OVIS_E2E_OUTPUT || '.e2e/ovis');
 await mkdir(evidence, { recursive: true, mode: 0o700 });
@@ -109,13 +108,6 @@ async function login(role) {
       () => page.locator('#sds-desktop').waitFor({ state: 'visible', timeout: 180_000 }), { page, target: page.locator('#sds-desktop') });
     await step(`login:${role}:user-menu`, '#sds-taskbar-tray-item-user',
       () => page.locator('#sds-taskbar-tray-item-user').waitFor(), { page });
-    // Reuse Clef's read-only DSM bootstrap/desktop semantics; no model or AI key needed.
-    const adapter = dsmAdapter({ startupWaitMs: 60_000 });
-    const snapshot = await step(`login:${role}:clef-desktop`, 'Clef desktopReady', () => until(() => adapter.observe(page, {
-      revision: 'desktop', viewport: { width: 1440, height: 1000 }, text: '',
-      truncated: false, tree: { id: 'root', role: 'document', children: [] },
-    }), value => value.desktopReady === true, 'Clef did not confirm DSM desktop readiness'), { page });
-    assert.equal(snapshot.desktopReady, true, 'Clef did not confirm DSM desktop readiness');
     return { context, page };
   } catch (error) { await diagnostics.failure(error, page); await context.close(); throw error; }
 }

@@ -26,9 +26,8 @@ both terminal presentation and enabled input controls, then focuses xterm's inpu
 ## Setup
 
 Use Node 24.8 or newer, SSH key access to the authorized device, and an installed
-`playwright` (1.63 tested) with Chromium. Install/build the
-`@synology-vincentt/e2e-clef` library in your test environment. Clef's DSM adapter
-confirms desktop readiness; Playwright handles deterministic application controls.
+`playwright` (1.63 tested) with Chromium. Playwright drives DSM sign-in, waits for
+the desktop and handles deterministic application controls.
 No model, provider, AI key, saved browser profile, or additional NAS API is needed.
 The test does not modify the package's dependency pins.
 
@@ -69,10 +68,9 @@ The shell case also checks runtime tool discovery and executes jq, rg, fd, curl,
 Python/SQLite and pip inside the ordinary user pane. Use a new evidence directory
 so the original run remains intact.
 
-The default imports resolve `playwright` and `@synology-vincentt/e2e-clef/dsm`
-from the runner's environment. To reuse separately installed or locally built
-dependencies, set `OVIS_E2E_PLAYWRIGHT_MODULE` to Playwright's `index.mjs` and
-`OVIS_E2E_CLEF_MODULE` to Clef's built `dist/dsm/index.js`. Set `OVIS_E2E_BROWSER`
+The default import resolves `playwright` from the runner's environment. To reuse a
+separately installed copy, set `OVIS_E2E_PLAYWRIGHT_MODULE` to Playwright's
+`index.mjs`. Set `OVIS_E2E_BROWSER`
 only when using a system Chromium executable. No developer-specific paths are
 baked into the suite. Run browser checks on the project's designated Linux test
 host/container; supply any SSH tunnel or proxy in that environment before starting.
