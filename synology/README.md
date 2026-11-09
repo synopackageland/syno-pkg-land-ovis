@@ -4,7 +4,7 @@ This folder packages unmodified [Ovis](https://github.com/devswha/ovis) behind
 DSM administrator sign-in. Upstream files outside `synology/` remain unchanged.
 
 Version 0.5.1-0001 packages upstream v0.5.1 without modifying its source.
-It uses SDK 0.53.9 (Compose and identity gateway) and CLI 0.52.6.
+It uses SDK 0.53.21 (Compose and identity gateway) and CLI 0.52.13.
 The runtime is rebuilt for x86_64 and aarch64 from that tag, with Bun 1.4.2,
 herdr 0.9.3 and remote bundle protocol 43. Node 22.23.4 (with npm) comes from
 the digest-pinned official image in `container/Dockerfile`; the Node PTY fallback

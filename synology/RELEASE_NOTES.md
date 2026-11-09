@@ -1,3 +1,12 @@
+# Ovis 0.5.1-0002
+
+Improve page loading reliability when signing in with SDK 0.53.21 and CLI 0.52.13.
+Session admission is shared and parallel asset requests queue. The upstream
+version, pinned container image, root policy and authentication policy are unchanged.
+The saved image metadata and token helpers from the previous released SPKs are
+reused for this rebuild. Check, build, baseline inspect and leak scans only;
+tests and NAS checks were not run. Ovis remains unlisted in the catalog.
+
 # Ovis 0.5.1-0001
 
 Upgrade to upstream [Ovis v0.5.1](https://github.com/devswha/ovis/releases/tag/v0.5.1),
