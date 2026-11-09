@@ -1,11 +1,11 @@
 {
-  "en": "0.5.1-0001\n\n- Upgrade to upstream Ovis 0.5.1 with conversation, terminal and mobile fixes\n- Find SSH PCs under Devices and PCs > Add a connection > SSH\n- Preserve SSH keys, aliases and workspaces while repairing container account and home ownership\n- Rebuild both architectures with SDK 0.53.9 and CLI 0.52.6; retain DSM administrator sign-in",
-  "zh-TW": "0.5.1-0001\n\n- 升級至上游 Ovis 0.5.1，改善對話、終端機與行動裝置體驗\n- 在 Devices and PCs > Add a connection > SSH 尋找 SSH 電腦\n- 修正容器帳號與家目錄擁有者，保留 SSH 金鑰、別名與工作區\n- 使用 SDK 0.53.9 與 CLI 0.52.6 重建兩架構，沿用 DSM 管理員登入",
-  "zh-CN": "0.5.1-0001\n\n- 升级至上游 Ovis 0.5.1，改善对话、终端与移动设备体验\n- 在 Devices and PCs > Add a connection > SSH 查找 SSH 电脑\n- 修复容器账户与主目录所有者，保留 SSH 密钥、别名和工作区\n- 使用 SDK 0.53.9 与 CLI 0.52.6 重建两种架构，沿用 DSM 管理员登录",
-  "ja": "0.5.1-0001\n\n- 上流 Ovis 0.5.1 に更新し、会話、ターミナル、モバイルの問題を修正\n- SSH 接続先は Devices and PCs > Add a connection > SSH に移動\n- コンテナのアカウントとホームの所有権を修正し、SSH 鍵、別名、ワークスペースを保持\n- SDK 0.53.9 と CLI 0.52.6 で両アーキテクチャを再ビルドし、DSM 管理者ログインを維持",
-  "ko": "0.5.1-0001\n\n- 업스트림 Ovis 0.5.1로 업데이트하여 대화, 터미널 및 모바일 문제 수정\n- Devices and PCs > Add a connection > SSH에서 SSH PC 찾기\n- 컨테이너 계정과 홈 소유권을 수정하면서 SSH 키, 별칭 및 작업 공간 유지\n- SDK 0.53.9와 CLI 0.52.6으로 두 아키텍처를 다시 빌드하고 DSM 관리자 로그인 유지",
-  "de": "0.5.1-0001\n\n- Auf Ovis 0.5.1 mit Korrekturen für Gespräche, Terminal und Mobilgeräte aktualisieren\n- SSH-PCs unter Devices and PCs > Add a connection > SSH finden\n- Containerkonto und Home-Eigentümer korrigieren; SSH-Schlüssel, Aliase und Arbeitsbereiche behalten\n- Beide Architekturen mit SDK 0.53.9 und CLI 0.52.6 neu bauen; DSM-Administratoranmeldung beibehalten",
-  "fr": "0.5.1-0001\n\n- Passer à Ovis 0.5.1 avec des corrections des conversations, du terminal et de l’affichage mobile\n- Retrouver les PC SSH dans Devices and PCs > Add a connection > SSH\n- Corriger le compte du conteneur et la propriété du dossier personnel en conservant clés SSH, alias et espaces de travail\n- Reconstruire les deux architectures avec SDK 0.53.9 et CLI 0.52.6, avec connexion administrateur DSM",
-  "es": "0.5.1-0001\n\n- Actualizar a Ovis 0.5.1 con correcciones de conversaciones, terminal y dispositivos móviles\n- Encontrar los PC SSH en Devices and PCs > Add a connection > SSH\n- Corregir la cuenta del contenedor y la propiedad del directorio personal conservando claves SSH, alias y espacios de trabajo\n- Reconstruir ambas arquitecturas con SDK 0.53.9 y CLI 0.52.6 y mantener el acceso de administrador DSM",
-  "it": "0.5.1-0001\n\n- Aggiornare a Ovis 0.5.1 con correzioni per conversazioni, terminale e dispositivi mobili\n- Trovare i PC SSH in Devices and PCs > Add a connection > SSH\n- Correggere l’account del contenitore e la proprietà della home mantenendo chiavi SSH, alias e spazi di lavoro\n- Ricostruire entrambe le architetture con SDK 0.53.9 e CLI 0.52.6 mantenendo l’accesso amministratore DSM"
+  "en": "Improve page loading reliability when signing in",
+  "zh-TW": "改善登入時的頁面載入穩定性",
+  "zh-CN": "改善登录时的页面加载稳定性",
+  "ja": "ログイン時のページ読み込みの安定性を改善",
+  "ko": "로그인 시 페이지 로딩 안정성 개선",
+  "de": "Zuverlässigkeit beim Laden der Seite während der Anmeldung verbessern",
+  "fr": "Améliorer la fiabilité du chargement des pages lors de la connexion",
+  "es": "Mejorar la fiabilidad de carga de las páginas al iniciar sesión",
+  "it": "Migliorare l’affidabilità del caricamento delle pagine durante l’accesso"
 }
