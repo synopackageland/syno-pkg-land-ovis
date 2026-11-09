@@ -36,7 +36,7 @@ if [[ ${SKIP_SOURCE_BUILD:-0} != 1 ]]; then
   cp -R "$packaging/adapter" "$prep/packaging/adapter"
   cp -R "$packaging/runtime" "$prep/packaging/runtime"
   docker buildx build --builder "$builder" \
-    --build-arg "https_proxy=${BUILD_PROXY:-}" \
+    --build-arg "https_proxy=${BUILD_PROXY:-}" --build-arg "no_proxy=${BUILD_NO_PROXY:-}" \
     --file "$packaging/container/prepare.Dockerfile" \
     --output "type=local,dest=$work/prepared" "$prep"
   rm -rf "$packaging/daemon"
@@ -48,27 +48,6 @@ rm -rf "$context"
 mkdir -p "$context/payload"
 cp "$packaging/container/Dockerfile" "$context/Dockerfile"
 cp -R "$packaging/LICENSES" "$context/LICENSES"
-# The only added system dependency is a library-only official Ubuntu package.
-# Verify the archive before it enters the context; never relax TLS verification.
-mkdir -p "$context/support" "$work/downloads"
-for cpu in amd64 arm64; do
-  archive="libnss-wrapper_1.1.15-2_$cpu.deb"
-  sha=$(awk -v file="$archive" '$2 == file {print $1}' "$packaging/container/nss-wrapper.sha256")
-  [[ $sha =~ ^[a-f0-9]{64}$ ]] || exit 2
-  case $cpu in
-    amd64) source=https://archive.ubuntu.com/ubuntu ;;
-    arm64) source=https://ports.ubuntu.com/ubuntu-ports ;;
-  esac
-  file="$work/downloads/$archive"
-  if [[ ! -f $file ]] || [[ $(sha256sum "$file" | cut -d' ' -f1) != "$sha" ]]; then
-    ca=()
-    [[ -z ${BUILD_CA_BUNDLE:-} ]] || ca=(--cacert "$BUILD_CA_BUNDLE")
-    curl -fsSL --retry 3 "${ca[@]}" "$source/pool/universe/n/nss-wrapper/$archive" -o "$file.part"
-    [[ $(sha256sum "$file.part" | cut -d' ' -f1) == "$sha" ]] || { echo "libnss-wrapper checksum mismatch" >&2; exit 1; }
-    mv "$file.part" "$file"
-  fi
-  cp "$file" "$context/support/libnss-wrapper_$cpu.deb"
-done
 for pair in x86_64:amd64 aarch64:arm64; do
   arch=${pair%%:*}; target=${pair##*:}
   cp -R "$packaging/daemon/$arch" "$context/payload/$target"
@@ -76,12 +55,17 @@ for pair in x86_64:amd64 aarch64:arm64; do
   cp "$packaging/daemon/$arch/ovis-token" "$packaging/helpers/$arch/ovis-token"
 done
 # OUTPUT=load with PLATFORMS=linux/amd64 supports local smoke tests.
+# OUTPUT=oci writes only the ARCHIVE, for an explicit `skopeo copy --all
+# --preserve-digests oci-archive:<ARCHIVE> docker://<IMAGE>` afterwards.
 output=${OUTPUT:-push}
-[[ $output == push || $output == load ]] || { echo "OUTPUT must be push or load" >&2; exit 2; }
+[[ $output == push || $output == load || $output == oci ]] || { echo "OUTPUT must be push, load or oci" >&2; exit 2; }
 archive=()
-if [[ -n ${ARCHIVE:-} ]]; then archive+=(--output "type=oci,dest=$ARCHIVE"); fi
+if [[ -n ${ARCHIVE:-} ]]; then archive+=(--output "type=oci,dest=$ARCHIVE,name=$IMAGE"); fi
+[[ $output != oci || -n ${ARCHIVE:-} ]] || { echo "OUTPUT=oci needs ARCHIVE" >&2; exit 2; }
+target=()
+[[ $output == oci ]] || target+=(--"$output")
 build_args=()
-if [[ -n ${BUILD_PROXY:-} ]]; then build_args+=(--build-arg "https_proxy=$BUILD_PROXY"); fi
+if [[ -n ${BUILD_PROXY:-} ]]; then build_args+=(--build-arg "https_proxy=$BUILD_PROXY" --build-arg "http_proxy=$BUILD_PROXY" --build-arg "no_proxy=${BUILD_NO_PROXY:-}"); fi
 docker buildx build --builder "$builder" --platform "${PLATFORMS:-linux/amd64,linux/arm64}" \
   --provenance=false "${archive[@]}" --tag "$IMAGE" "${build_args[@]}" \
-  --"$output" "$context"
+  "${target[@]}" "$context"

@@ -1,14 +1,10 @@
 services:
   ovis:
-    image: ghcr.io/synopackageland/syno-pkg-land-ovis-runtime:0.5.1-0003@sha256:9fdcf9a73bc4d78a7632658d0287f32103fdca6b34762300bf70ca6e18400172
-    entrypoint: [/opt/ovis/ovis-launch]
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
+    image: ghcr.io/synopackageland/syno-pkg-land-ovis-runtime:0.5.1-0004@sha256:54ac6c1a7f558b999af0d12e11a47d4791b41c1072df75113802a220f8702c35
+    entrypoint: [/usr/bin/tini, --, /opt/ovis/ovis-launch]
     environment:
       HOST: '0.0.0.0'
       PORT: '37317'
-      HOME: /data/home
       OVIS_WORKSPACE: /data/workspace
       XDG_CONFIG_HOME: /data/home/config
       HERDR_SOCKET: /data/home/config/herdr/herdr.sock
@@ -18,11 +14,6 @@ services:
       OVIS_AUTO_UPDATE: '0'
       NPM_CONFIG_PREFIX: /data/home/.local
       PATH: /data/home/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-    volumes:
-      - type: tmpfs
-        target: /run/ovis
-        tmpfs: {size: 1048576, mode: 1023}
-    tmpfs: ["/tmp:rw,exec,nosuid,nodev,size=536870912,mode=1777"]
     mem_limit: 2g
     cpu_shares: 512
     restart: unless-stopped

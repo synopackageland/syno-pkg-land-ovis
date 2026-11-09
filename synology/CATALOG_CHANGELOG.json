@@ -1,11 +1,11 @@
 {
-  "en": "Choose a NAS subfolder for HOME and workspaces, run as the package account without root capabilities",
-  "zh-TW": "可選擇 NAS 子資料夾儲存 HOME 與工作區，改以套件帳號執行並移除 root capabilities",
-  "zh-CN": "可选择 NAS 子文件夹存储 HOME 和工作区，改以套件账户运行并移除 root capabilities",
-  "ja": "HOME とワークスペース用の NAS サブフォルダーを選択し、root 権限なしのパッケージアカウントで実行",
-  "ko": "HOME 및 작업 공간에 NAS 하위 폴더를 선택하고 root 권한 없이 패키지 계정으로 실행",
-  "de": "NAS-Unterordner für HOME und Arbeitsbereiche wählen und ohne Root-Berechtigungen als Paketkonto ausführen",
-  "fr": "Choisir un sous-dossier NAS pour HOME et les espaces de travail, avec le compte du paquet sans privilèges root",
-  "es": "Elegir una subcarpeta del NAS para HOME y los espacios de trabajo, con la cuenta del paquete sin privilegios root",
-  "it": "Scegliere una sottocartella NAS per HOME e gli spazi di lavoro, usando l’account del pacchetto senza privilegi root"
+  "en": "Run single commands as container root with sudo in the Ovis terminal; the SDK sets up the account, HOME and private SSH key modes",
+  "zh-TW": "可在 Ovis 終端機以 sudo 用容器 root 執行單一指令；帳號、HOME 與 SSH 金鑰權限改由 SDK 設定",
+  "zh-CN": "可在 Ovis 终端以 sudo 用容器 root 运行单条命令；账户、HOME 与 SSH 密钥权限改由 SDK 设置",
+  "ja": "Ovis のターミナルで sudo によりコンテナー root として単一コマンドを実行可能。アカウント、HOME、SSH 鍵の権限は SDK が設定",
+  "ko": "Ovis 터미널에서 sudo로 컨테이너 root 권한으로 단일 명령 실행 가능. 계정, HOME, SSH 키 권한은 SDK가 설정",
+  "de": "Einzelne Befehle im Ovis-Terminal mit sudo als Container-Root ausführen; Konto, HOME und private SSH-Schlüsselrechte richtet das SDK ein",
+  "fr": "Exécuter des commandes uniques en root du conteneur avec sudo dans le terminal Ovis ; le SDK configure le compte, HOME et les droits privés des clés SSH",
+  "es": "Ejecutar comandos sueltos como root del contenedor con sudo en el terminal de Ovis; el SDK configura la cuenta, HOME y los permisos privados de las claves SSH",
+  "it": "Eseguire singoli comandi come root del container con sudo nel terminale Ovis; l’SDK configura account, HOME e permessi privati delle chiavi SSH"
 }

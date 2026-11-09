@@ -12,6 +12,7 @@ func TestSSHHomeCreatesRetainedKeyWithoutOverwriting(t *testing.T) {
 		t.Skip("ssh-keygen unavailable")
 	}
 	home := t.TempDir()
+	fakeFixer(t, filepath.Join(t.TempDir(), "fixed"))
 	if err := prepareSSH(home); err != nil {
 		t.Fatal(err)
 	}
@@ -56,27 +57,44 @@ func TestSSHHomeRejectsLinksAndRetainsExistingKeys(t *testing.T) {
 	}
 }
 
-func TestSSHDirectoryNarrowsInheritedPermissions(t *testing.T) {
+func TestSSHRunsFixPermissionsOnlyAfterCreatingAKey(t *testing.T) {
 	if _, err := exec.LookPath("ssh-keygen"); err != nil {
 		t.Skip("ssh-keygen unavailable")
 	}
 	home := t.TempDir()
-	dir := filepath.Join(home, ".ssh")
-	if err := os.Mkdir(dir, 0777); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chmod(dir, 0777); err != nil {
-		t.Fatal(err)
-	}
+	marker := filepath.Join(t.TempDir(), "fixed")
+	fakeFixer(t, marker)
 	if err := prepareSSH(home); err != nil {
 		t.Fatal(err)
 	}
-	st, err := os.Stat(dir)
-	if err != nil || st.Mode().Perm() != 0700 {
-		t.Fatal("SSH directory is not private", err)
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatal("fix-permissions did not run after key creation")
 	}
-	key, err := os.Stat(filepath.Join(dir, "id_ed25519"))
-	if err != nil || key.Mode().Perm() != 0600 {
-		t.Fatal("SSH key is not private", err)
+	os.Remove(marker)
+	if err := prepareSSH(home); err != nil {
+		t.Fatal(err)
 	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatal("fix-permissions ran again for an existing key; the init covers later starts")
+	}
+}
+
+func TestSSHReportsAFailedFixPermissions(t *testing.T) {
+	if _, err := exec.LookPath("ssh-keygen"); err != nil {
+		t.Skip("ssh-keygen unavailable")
+	}
+	saved := fixPermissions
+	fixPermissions = []string{"/bin/false"}
+	t.Cleanup(func() { fixPermissions = saved })
+	if err := prepareSSH(t.TempDir()); err == nil {
+		t.Fatal("a failed fix-permissions was ignored")
+	}
+}
+
+// fakeFixer stands in for the SDK's in-container command, which tests do not have.
+func fakeFixer(t *testing.T, marker string) {
+	t.Helper()
+	saved := fixPermissions
+	fixPermissions = []string{"/bin/sh", "-c", "touch " + marker}
+	t.Cleanup(func() { fixPermissions = saved })
 }

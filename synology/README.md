@@ -3,8 +3,8 @@
 This folder packages unmodified [Ovis](https://github.com/devswha/ovis) behind
 DSM administrator sign-in. Upstream files outside `synology/` remain unchanged.
 
-Version 0.5.1-0003 packages unmodified upstream v0.5.1 with SDK 0.53.23
-and CLI 0.52.15. The runtime is built for x86_64 and aarch64, with Bun 1.4.2,
+Version 0.5.1-0004 packages unmodified upstream v0.5.1 with SDK 0.53.26
+and CLI 0.52.17. The runtime is built for x86_64 and aarch64, with Bun 1.4.2,
 herdr 0.9.3 and remote bundle protocol 43. Node 22.23.4 (with npm) and the
 Node PTY fallback retain the immutable previous runtime as their tool layer.
 
@@ -18,15 +18,25 @@ Dialog and Retry. This grant covers the share even when a subtree is mounted.
 ## Runtime and access
 
 The SDK assigns the DSM package UID:GID to the Ovis container. Shells,
-herdr, agents and SSH all run as that identity. `cap_drop: [ALL]` and
-no-new-privileges are enabled, with no added capabilities, privileged mode,
-Docker socket or host network. The root filesystem is read-only; `/tmp` is an
-executable, bounded tmpfs. A separate 1 MiB tmpfs at `/run/ovis` holds the
-SDK initializer’s private runtime directory. Container Manager may add NET_BIND_SERVICE to the
-bounding set; effective capabilities must remain zero for the package user.
+herdr, agents and SSH all run as that identity. A terminal may run single
+commands as container root with `sudo` (no password), for example
+`sudo apt-get install -y build-essential`; see "sudo inside the container"
+below. The SDK drops all capabilities and adds back only those sudo needs
+(AUDIT_WRITE, CHOWN, DAC_OVERRIDE, FOWNER, FSETID, SETGID, SETUID), with no
+privileged mode, devices, Docker socket or host network. The package user's
+effective capabilities stay zero until it runs `sudo`.
+
+The root filesystem is writable so that apt can install into the container
+layer. `/tmp` is the image's own directory (mode 1777); `TMPDIR` is `/scratch`,
+the SDK's disk scratch in the package's own storage, owned by the package
+account, mode 0700 and emptied at every start. There is no memory tmpfs:
+DSM's Docker recreates a tmpfs as root mode 0755 on a container restart,
+ignoring its declared mode, which stopped the previous build's `/run/ovis`
+runtime directory from starting again after a restart. tini is PID 1 and reaps
+processes orphaned by terminals and agents.
 
 The persistent mount is the selected NAS folder at `/data`, with read/write
-access. The launcher creates `home/` and `workspace/` as the package account,
+access. The SDK creates `home/` and `workspace/` as the package account,
 without chown or changing the selected parent folder. Existing files stay in
 place. No named volume is declared or mounted and no legacy data is imported.
 
@@ -46,9 +56,26 @@ rotates when the installed package generation is replaced; home data is retained
 `HOME=/data/home` holds agents, npm's user prefix (`~/.local`), SSH
 configuration, herdr configuration and Ovis state. `/data/workspace` is the
 default directory for new local workspaces; explicit paths keep their meaning.
-The read-only runtime uses libnss_wrapper to supply the assigned package UID's
-account and HOME to libc/OpenSSH, with private temporary passwd/group files.
-This needs no root process or writable `/etc/passwd` at runtime.
+The SDK's container init (`synopkgland container init`) runs before the
+launcher on every start: it appends the account `ovis` for the package UID to
+`/etc/passwd` and `/etc/group` (writable by that UID in the image, because
+setuid sudo ignores libnss_wrapper), sets `HOME`, `USER`, `LOGNAME`, `TMPDIR`
+and `/synopkgland/bin` on `PATH`, and removes group/other access from existing
+credential paths the package UID owns (`~/.ssh`, its keys, config and
+`authorized_keys`, `~/.gnupg`, `~/.netrc` and similar). It never follows
+symlinks or changes another account's files.
+
+## sudo inside the container
+
+Container Manager has no user namespace, so container root is root on the NAS
+for whatever is mounted: through `sudo`, the selected NAS folder can be read and
+changed regardless of DSM permissions, and files created with `sudo` belong to
+root. Agents in the container can use `sudo` too. Ovis is for DSM
+administrators only; choose a folder that belongs to them.
+
+Packages installed with `apt-get` live in the container layer. They are gone
+when the container is recreated (package update, repair or changed settings);
+install them again afterwards, for example from a script in HOME.
 
 The container has internet egress for agent installation and remote PCs. Its
 memory limit is 2 GiB and CPU scheduling weight is 512. DSM kernels without CFS
@@ -59,11 +86,12 @@ identity and its home; there is no per-administrator filesystem isolation.
 
 Settings > Devices and PCs > Add a connection > SSH > Add PC shows **SSH keys and configuration**, the
 package's public key and a **Copy public key** button. On first start the launcher
-creates an Ed25519 key in `/data/home/.ssh/id_ed25519` and its `.pub` file, using
-private directory/file modes. The launcher explicitly applies mode 0700 through
-an owned, no-follow `.ssh` directory descriptor because DSM ACL inheritance can
-override the mode requested by mkdir. Existing private keys are retained and never
-overwritten. The private key is never returned by the setup endpoint.
+creates an Ed25519 key in `/data/home/.ssh/id_ed25519` and its `.pub` file, then
+runs `synopkgland container fix-permissions` once, because DSM ACL inheritance
+can widen the modes mkdir and ssh-keygen ask for. Later starts get the same
+treatment from the container init. After loosening a key or `.ssh` by hand, run
+`synopkgland container fix-permissions` in an Ovis terminal. Existing private
+keys are retained and never overwritten. The private key is never returned by the setup endpoint.
 
 Copy the public key to `~/.ssh/authorized_keys` for the account on the remote PC,
 set that PC's `.ssh` directory to mode 700 and `authorized_keys` to mode 600, and
@@ -116,16 +144,17 @@ upstream's Bun command, verifies both Bun/herdr downloads and stages both
 architectures. An isolated, prefixed buildx builder builds and pushes the image
 index. Its cache is pruned and builder removed on exit; existing volumes and
 shared builders are untouched. `BUILD_PROXY` optionally supplies an operator's
-HTTP CONNECT proxy to the builder and HTTPS build downloads. No host paths are
+HTTP CONNECT proxy to the builder, HTTP/HTTPS build downloads and apt. `BUILD_NO_PROXY`
+optionally names hosts those downloads reach directly. No host paths are
 hardcoded. `OUTPUT=load PLATFORMS=linux/amd64` supports a local single-architecture
 smoke build. `ARCHIVE=/path/to/image.oci.tar` also exports a multi-architecture
-OCI archive during a push build; `docker save` can export that image for transfer to a test NAS.
+OCI archive during a push build; `OUTPUT=oci ARCHIVE=...` writes only that archive,
+which `skopeo copy --all --preserve-digests oci-archive:<archive> docker://<IMAGE>`
+then publishes with the same digest. `docker save` can export that image for transfer to a test NAS.
 `SKIP_SOURCE_BUILD=1` reuses already verified local payloads during iteration.
 The image reuses the previous released runtime's immutable system/tool layer,
 replaces the entire application payload, and restores the unchanged target-native
-PTY packages. libnss-wrapper 1.1.15-2 comes from official Ubuntu archives pinned
-by `container/nss-wrapper.sha256`; no package scripts run. `BUILD_CA_BUNDLE`
-optionally supplies a trusted CA bundle to the build-host archive download.
+PTY packages. sudo and tini come from Ubuntu's apt archive at build time.
 `KEEP_BUILDER=1` keeps only that run's builder/cache for an active retry; finish
 with `docker buildx prune --builder "$BUILD_PREFIX-ovis-builder" --all --force`
 and `docker buildx rm "$BUILD_PREFIX-ovis-builder"`.
@@ -157,6 +186,8 @@ Ubuntu supplies glibc for Bun, Node and agents. Explicit additional packages:
 | python3, python3-pip, python3-venv | Python scripts and isolated package installation |
 | sqlite3 | Inspect and query local databases |
 | iputils-ping | Basic network diagnostics, subject to runtime network permissions |
+| sudo | Single commands as container root (SDK `run_as.sudo`) |
+| tini | PID 1; reaps orphaned processes |
 
 Ubuntu's `universe` component is enabled for these tools. All packages still use
 `--no-install-recommends`. `fd` links to Ubuntu's `fdfind`; `python` links to
@@ -172,11 +203,11 @@ python3 -m venv "$HOME/.venvs/project"
 "$HOME/.venvs/project/bin/pip" install <package>
 ```
 
-The bounded `/tmp` tmpfs explicitly allows execution so temporary venv entrypoints
-also work. It retains `nosuid` and `nodev`; the root filesystem stays read-only.
+`/tmp` and `/scratch` are on disk and allow execution, so temporary venv
+entrypoints work.
 
-No compiler, sudo, Docker client or system daemon is installed. Agent installers
-needing extra system packages require a future image revision.
+No compiler, Docker client or system daemon is installed. Install what an agent
+needs with `sudo apt-get install`; it lasts until the container is recreated.
 
 ## Storage mapping and retention
 
@@ -221,7 +252,9 @@ but makes every package download/upgrade carry the runtime layers again.
 checks launcher/token behavior. `npm run test:local` also builds/inspects the SPK.
 `OVIS_TEST_IMAGE=<image> BUILD_PREFIX=<disposable-prefix> npm run test:image`
 checks both image architectures as UID 1000, with a read-only root filesystem,
-no capabilities and no network. It verifies the tools and symlinks, creates a
+no capabilities and no network. It verifies the tools and symlinks, the sudo
+contract (setuid sudo, the `ovis` sudoers rule, appendable account files) and
+tini, that no compiler or Docker client/daemon is present, creates a
 temporary venv and installs/imports a synthetic pure-Python wheel offline.
 `OVIS_TEST_PLATFORMS=linux/amd64` selects a native-only development check;
 the default also needs arm64 emulation on an amd64 build host.
@@ -245,6 +278,6 @@ known failures in `/api/machines/setup` jobs. The Add PC dialog still uses
 `#machine-connect-form`, `.machine-dialog`, `phase`, `error` and `ssh_output`.
 Its entry now lives under Devices and PCs > Add a connection > SSH. Obsolete
 pre-Ovis environment aliases were removed to match the current naming contract.
-The runtime supplies the package account through libnss_wrapper. The remote
+The SDK's container init supplies the package account. The remote
 bundle version is read from `shared/machines.ts`; fixtures must use version 43
 for this release instead of the former version 41.

@@ -50,17 +50,10 @@ func main() {
 	}
 }
 
+// launch runs under the SDK's container init, which already gave the package
+// UID its account entry, HOME, TMPDIR and private credential modes, and
+// storage_init, which created the workspace.
 func launch() error {
-	if err := prepareHome("/data"); err != nil {
-		return err
-	}
-	if err := prepareIdentity(os.Getenv("HOME")); err != nil {
-		return err
-	}
-	return run()
-}
-
-func run() error {
 	self, err := os.Executable()
 	if err != nil {
 		return err
