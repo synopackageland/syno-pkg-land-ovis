@@ -8,7 +8,7 @@ schema: 2
 package: Ovis
 version: 0.5.1
 # The build resets to 1 with every upstream release (INFO <upstream>-0001).
-build: 3
+build: 4
 displayname: Ovis
 description: Herdr's coding agents in your browser and on your phone, served from your NAS.
 # Upstream's sheep (app/assets/ovis-sheep.png), unchanged, on a rounded DSM-style
@@ -34,16 +34,27 @@ install:
 
 # The runtime uses only the fixed package identity and selected NAS folder.
 compose:
-  sdk: 0.53.23
+  sdk: 0.53.26
   files: [compose.yaml]
   helpers:
     x86_64: helpers/x86_64
     aarch64: helpers/aarch64
   services:
     ovis:
-      run_as: {mode: package}
+      # Ovis, herdr, shells and agents run as the package UID; only an explicit
+      # `sudo ...` in a terminal runs as container root.
+      run_as:
+        mode: package
+        sudo: {reason: "Install build tools with apt in the Ovis terminal"}
+      # The SDK's container init gives the package UID the account `ovis`, HOME,
+      # TMPDIR and private credential file modes on every start.
+      console: {home: /data/home, user: ovis}
+      # Temporary files go to disk, emptied at every start; /tmp stays the
+      # image's own directory. No memory tmpfs: DSM's Docker recreates a tmpfs
+      # as root 0755 on a container restart, ignoring its declared mode.
+      scratch: [/scratch]
       storage_init:
-        directories: [{base: /run/ovis, path: runtime}]
+        directories: [{base: /data, path: workspace}]
         runtime:
           environment:
             OVIS_TOKEN: {secret: ovis}
@@ -60,7 +71,7 @@ compose:
   network: {egress: internet}
 
 identity_gateway:
-  sdk: 0.53.23
+  sdk: 0.53.26
   # A DSM administrator signs in; the fixed token adapter then supplies Ovis's
   # own proxy credential (Authorization: Bearer <OVIS_TOKEN>), the sign-in
   # proxy setup upstream documents. The browser never receives the token, and

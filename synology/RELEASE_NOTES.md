@@ -1,3 +1,17 @@
+# Ovis 0.5.1-0004
+
+Ovis terminals may now run single commands as container root with `sudo`, for
+example `sudo apt-get install` for build tools; Ovis, herdr, shells and agents
+still run as the DSM package account. SDK 0.53.26 and CLI 0.52.17 supply the
+container init that replaces the package's own account, HOME and SSH permission
+code: it sets the account, HOME, TMPDIR (disk scratch at `/scratch`) and private
+credential file modes on every start. `/tmp` is now on disk instead of memory,
+tini reaps orphaned processes, and `synopkgland container fix-permissions`
+tightens a loosened SSH key. Packages installed with apt are gone when the
+container is recreated. The `/run/ovis` memory tmpfs is gone: DSM's Docker
+recreated it as root 0755 on a container restart, so the previous build did not
+start again after a restart. Ovis stays unlisted; this build does not change the catalog.
+
 # Ovis 0.5.1-0003
 
 Select an existing NAS folder, including nested subfolders, for HOME and local

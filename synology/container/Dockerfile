@@ -5,13 +5,17 @@ FROM ghcr.io/synopackageland/syno-pkg-land-ovis-runtime:0.5.1-0001@sha256:68603f
 FROM tools
 USER 0:0
 ARG TARGETARCH
-# build-image.sh verifies these official Ubuntu archives against the committed
-# SHA-256 pins. This library needs no package scripts or privileged runtime step.
-COPY support/libnss-wrapper_${TARGETARCH}.deb /tmp/libnss-wrapper.deb
-RUN dpkg-deb --extract /tmp/libnss-wrapper.deb / \
-    && rm /tmp/libnss-wrapper.deb \
-    && rm -rf /opt/ovis \
-    && ln -s /usr/lib/$(uname -m)-linux-gnu/libnss_wrapper.so /usr/local/lib/libnss_wrapper.so
+# sudo inside the container (SDK run_as.sudo): the console user `ovis` may run
+# single commands as container root, for example `sudo apt-get install`. The
+# SDK's init appends that user's /etc/passwd and /etc/group entry for the
+# package UID at start, because setuid sudo reads only the real files. tini is
+# PID 1 and reaps processes orphaned by terminals and agents.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends sudo tini \
+    && rm -rf /var/lib/apt/lists/* /opt/ovis \
+    && printf 'ovis ALL=(ALL:ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/ovis \
+    && chmod 0440 /etc/sudoers.d/ovis \
+    && chmod 0666 /etc/passwd /etc/group
 COPY payload/${TARGETARCH}/ /opt/ovis/
 # Fresh source preparation prunes the Node addon. Restore only the unchanged,
 # target-native PTY packages from the verified tools layer.
@@ -19,4 +23,4 @@ COPY --from=tools /opt/ovis/app/node_modules/@lydell/ /opt/ovis/app/node_modules
 COPY LICENSES/ /usr/share/doc/ovis-runtime/
 ENV HOME=/data/home
 USER 1000:1000
-ENTRYPOINT ["/opt/ovis/ovis-launch"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/opt/ovis/ovis-launch"]
