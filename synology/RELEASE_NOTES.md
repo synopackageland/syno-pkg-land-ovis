@@ -1,3 +1,13 @@
+# Ovis 0.5.1-0005
+
+On a NAS with less than 4 GB of RAM (MemTotal below 3400 MiB; 4 GB models
+report about 3.7 GB), the install wizard now warns, without blocking, that AI
+agents such as Codex and Claude Code can exhaust memory and slow the system, and
+recommends connecting a remote PC with **Add PC** (Settings → Devices and PCs →
+Add a connection) to run them there. Installation, upgrades and silent upgrades
+are never blocked, and Ovis has no hard memory minimum. Requires CLI 0.52.18
+(`install.recommended_memory_mb`).
+
 # Ovis 0.5.1-0004
 
 Ovis terminals may now run single commands as container root with `sudo`, for

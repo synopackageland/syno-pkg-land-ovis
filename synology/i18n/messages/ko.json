@@ -31,5 +31,6 @@
   "status.user": "사용자",
   "status.userAdmin": "{user}(관리자)",
   "status.version": "버전",
-  "status.platform": "플랫폼"
+  "status.platform": "플랫폼",
+  "install.recommended_memory_message": "메모리가 4 GB 미만이면 Ovis의 'PC 추가'(설정 → 기기와 PC → 연결 추가)로 원격 PC에 연결하고, 이 NAS에서 Codex, Claude Code 등 AI 에이전트를 직접 실행하지 마세요. 메모리가 부족해 시스템이 느려질 수 있습니다"
 }

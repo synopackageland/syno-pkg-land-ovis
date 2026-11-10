@@ -31,5 +31,6 @@
   "status.user": "使用者帳號",
   "status.userAdmin": "{user}（管理員）",
   "status.version": "版本",
-  "status.platform": "平台"
+  "status.platform": "平台",
+  "install.recommended_memory_message": "記憶體少於 4 GB 時，請使用 Ovis 的 Add PC（Settings → Devices and PCs → Add a connection）連線遠端電腦，避免直接在此 NAS 上執行 Codex、Claude Code 或其他 AI agent，否則記憶體可能不足並拖慢系統"
 }
