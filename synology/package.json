@@ -9,6 +9,6 @@
     "e2e:nas": "node tests/e2e/run.mjs"
   },
   "devDependencies": {
-    "@synopackageland/cli": "~0.52.17"
+    "@synopackageland/cli": "~0.52.18"
   }
 }
