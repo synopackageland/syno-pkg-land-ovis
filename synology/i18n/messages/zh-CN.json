@@ -31,5 +31,6 @@
   "status.user": "用户帐号",
   "status.userAdmin": "{user}（管理员）",
   "status.version": "版本",
-  "status.platform": "平台"
+  "status.platform": "平台",
+  "install.recommended_memory_message": "内存少于 4 GB 时，请使用 Ovis 的“添加 PC”（设置 → 设备和电脑 → 添加连接）连接远程电脑，避免直接在此 NAS 上运行 Codex、Claude Code 或其他 AI agent，否则内存可能不足并拖慢系统"
 }

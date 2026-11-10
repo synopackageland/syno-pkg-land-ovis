@@ -8,7 +8,7 @@ schema: 2
 package: Ovis
 version: 0.5.1
 # The build resets to 1 with every upstream release (INFO <upstream>-0001).
-build: 4
+build: 5
 displayname: Ovis
 description: Herdr's coding agents in your browser and on your phone, served from your NAS.
 # Upstream's sheep (app/assets/ovis-sheep.png), unchanged, on a rounded DSM-style
@@ -29,6 +29,10 @@ entry: admin-only
 
 # The gateway's public HTTPS port is chosen in the install wizard.
 install:
+  # No hard minimum. Below about 85% of 4 GB (4 GB machines report about 3.7 GB)
+  # the install wizard warns, without blocking, to run agents on a remote PC
+  # (i18n/messages: install.recommended_memory_message).
+  recommended_memory_mb: 3400
   ports: true
   sharedFolder: {mode: select, key: data, permission: rw, picker: folder}
 

@@ -31,5 +31,6 @@
   "status.user": "ユーザー",
   "status.userAdmin": "{user}（管理者）",
   "status.version": "バージョン",
-  "status.platform": "プラットフォーム"
+  "status.platform": "プラットフォーム",
+  "install.recommended_memory_message": "メモリが 4 GB 未満の場合は、Ovis の「PC を追加」（設定 → デバイスと PC → 接続を追加）でリモート PC に接続し、この NAS で Codex、Claude Code などの AI エージェントを直接実行しないでください。メモリが不足し、システムが遅くなる可能性があります"
 }

@@ -31,5 +31,6 @@
   "status.user": "Usuario",
   "status.userAdmin": "{user} (administrador)",
   "status.version": "Versión",
-  "status.platform": "Plataforma"
+  "status.platform": "Plataforma",
+  "install.recommended_memory_message": "Con menos de 4 GB de RAM, conecte un PC remoto con Add PC de Ovis (Settings → Devices and PCs → Add a connection) y evite ejecutar Codex, Claude Code u otros agentes de IA directamente en este NAS; de lo contrario, la memoria puede agotarse y ralentizar el sistema"
 }

@@ -1,11 +1,11 @@
 {
-  "en": "Run single commands as container root with sudo in the Ovis terminal; the SDK sets up the account, HOME and private SSH key modes",
-  "zh-TW": "可在 Ovis 終端機以 sudo 用容器 root 執行單一指令；帳號、HOME 與 SSH 金鑰權限改由 SDK 設定",
-  "zh-CN": "可在 Ovis 终端以 sudo 用容器 root 运行单条命令；账户、HOME 与 SSH 密钥权限改由 SDK 设置",
-  "ja": "Ovis のターミナルで sudo によりコンテナー root として単一コマンドを実行可能。アカウント、HOME、SSH 鍵の権限は SDK が設定",
-  "ko": "Ovis 터미널에서 sudo로 컨테이너 root 권한으로 단일 명령 실행 가능. 계정, HOME, SSH 키 권한은 SDK가 설정",
-  "de": "Einzelne Befehle im Ovis-Terminal mit sudo als Container-Root ausführen; Konto, HOME und private SSH-Schlüsselrechte richtet das SDK ein",
-  "fr": "Exécuter des commandes uniques en root du conteneur avec sudo dans le terminal Ovis ; le SDK configure le compte, HOME et les droits privés des clés SSH",
-  "es": "Ejecutar comandos sueltos como root del contenedor con sudo en el terminal de Ovis; el SDK configura la cuenta, HOME y los permisos privados de las claves SSH",
-  "it": "Eseguire singoli comandi come root del container con sudo nel terminale Ovis; l’SDK configura account, HOME e permessi privati delle chiavi SSH"
+  "en": "On NAS models with less than 4 GB of RAM, the install wizard recommends connecting a remote PC with Add PC instead of running AI agents on the NAS; installation can continue",
+  "zh-TW": "記憶體少於 4 GB 的 NAS 安裝時會建議使用 Add PC 連線遠端電腦，而非在 NAS 上執行 AI agent；仍可繼續安裝",
+  "zh-CN": "内存少于 4 GB 的 NAS 安装时会建议使用“添加 PC”连接远程电脑，而非在 NAS 上运行 AI agent；仍可继续安装",
+  "ja": "メモリが 4 GB 未満の NAS では、インストール時に NAS で AI エージェントを実行せず「PC を追加」でリモート PC に接続するよう案内。インストールは続行可能",
+  "ko": "메모리가 4 GB 미만인 NAS에서는 설치 시 NAS에서 AI 에이전트를 실행하는 대신 'PC 추가'로 원격 PC에 연결하도록 권장하며, 설치는 계속할 수 있음",
+  "de": "Auf NAS mit weniger als 4 GB RAM empfiehlt der Installationsassistent, statt KI-Agenten auf dem NAS einen Remote-PC über Add PC zu verbinden; die Installation kann fortgesetzt werden",
+  "fr": "Sur les NAS de moins de 4 Go de RAM, l'assistant d'installation conseille de connecter un PC distant avec Add PC plutôt que d'exécuter des agents IA sur le NAS ; l'installation peut continuer",
+  "es": "En NAS con menos de 4 GB de RAM, el asistente de instalación recomienda conectar un PC remoto con Add PC en lugar de ejecutar agentes de IA en el NAS; la instalación puede continuar",
+  "it": "Sui NAS con meno di 4 GB di RAM, la procedura di installazione consiglia di collegare un PC remoto con Add PC invece di eseguire agenti IA sul NAS; l'installazione può continuare"
 }
