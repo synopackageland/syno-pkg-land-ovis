@@ -1,3 +1,9 @@
+# Ovis 0.5.1-0006
+
+Package Center descriptions in all nine languages now recommend running agents
+on another computer on NAS models with less than 4 GB of memory, or using a
+lightweight agent such as Pi. This is a description-only rebuild.
+
 # Ovis 0.5.1-0005
 
 On a NAS with less than 4 GB of RAM (MemTotal below 3400 MiB; 4 GB models

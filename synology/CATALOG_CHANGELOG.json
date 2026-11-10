@@ -1,11 +1,11 @@
 {
-  "en": "On NAS models with less than 4 GB of RAM, the install wizard recommends connecting a remote PC with Add PC instead of running AI agents on the NAS; installation can continue",
-  "zh-TW": "記憶體少於 4 GB 的 NAS 安裝時會建議使用 Add PC 連線遠端電腦，而非在 NAS 上執行 AI agent；仍可繼續安裝",
-  "zh-CN": "内存少于 4 GB 的 NAS 安装时会建议使用“添加 PC”连接远程电脑，而非在 NAS 上运行 AI agent；仍可继续安装",
-  "ja": "メモリが 4 GB 未満の NAS では、インストール時に NAS で AI エージェントを実行せず「PC を追加」でリモート PC に接続するよう案内。インストールは続行可能",
-  "ko": "메모리가 4 GB 미만인 NAS에서는 설치 시 NAS에서 AI 에이전트를 실행하는 대신 'PC 추가'로 원격 PC에 연결하도록 권장하며, 설치는 계속할 수 있음",
-  "de": "Auf NAS mit weniger als 4 GB RAM empfiehlt der Installationsassistent, statt KI-Agenten auf dem NAS einen Remote-PC über Add PC zu verbinden; die Installation kann fortgesetzt werden",
-  "fr": "Sur les NAS de moins de 4 Go de RAM, l'assistant d'installation conseille de connecter un PC distant avec Add PC plutôt que d'exécuter des agents IA sur le NAS ; l'installation peut continuer",
-  "es": "En NAS con menos de 4 GB de RAM, el asistente de instalación recomienda conectar un PC remoto con Add PC en lugar de ejecutar agentes de IA en el NAS; la instalación puede continuar",
-  "it": "Sui NAS con meno di 4 GB di RAM, la procedura di installazione consiglia di collegare un PC remoto con Add PC invece di eseguire agenti IA sul NAS; l'installazione può continuare"
+  "en": "Package Center description recommends running agents on another computer on low-memory NAS models",
+  "zh-TW": "套件中心說明建議在低記憶體 NAS 機型上改於其他電腦執行 agent",
+  "zh-CN": "套件中心说明建议在低内存 NAS 机型上改于其他电脑运行 agent",
+  "ja": "パッケージセンターの説明で、メモリの少ない NAS では別のコンピューターでエージェントを実行することを推奨",
+  "ko": "패키지 센터 설명에서 메모리가 적은 NAS 모델은 다른 컴퓨터에서 에이전트를 실행하도록 권장",
+  "de": "Die Beschreibung im Paket-Zentrum empfiehlt bei NAS-Modellen mit wenig Arbeitsspeicher, Agenten auf einem anderen Computer auszuführen",
+  "fr": "La description du Centre de paquets recommande d’exécuter les agents sur un autre ordinateur pour les NAS disposant de peu de mémoire",
+  "es": "La descripción del Centro de paquetes recomienda ejecutar los agentes en otro equipo en modelos NAS con poca memoria",
+  "it": "La descrizione nel Centro pacchetti consiglia di eseguire gli agenti su un altro computer sui modelli NAS con poca memoria"
 }
