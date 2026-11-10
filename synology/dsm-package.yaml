@@ -8,9 +8,9 @@ schema: 2
 package: Ovis
 version: 0.5.1
 # The build resets to 1 with every upstream release (INFO <upstream>-0001).
-build: 5
+build: 6
 displayname: Ovis
-description: Herdr's coding agents in your browser and on your phone, served from your NAS.
+description: Herdr's coding agents in your browser and on your phone, served from your NAS. On a NAS with less than 4 GB of memory, run agents on another computer or use a lightweight one such as Pi
 # Upstream's sheep (app/assets/ovis-sheep.png), unchanged, on a rounded DSM-style
 # tile (assets/icon/, variant b of assets/make-icon.py), drawn per size so
 # 16, 24 and 32 px use a fuller tile with no drop shadows.
@@ -128,13 +128,13 @@ i18n:
   messages: i18n/messages
   glossary: i18n/glossary.json
   info:
-    zh-TW: { description: "在瀏覽器和手機上使用 herdr 的 coding agent，由你的 NAS 提供服務" }
-    zh-CN: { description: "在浏览器和手机上使用 herdr 的 coding agent，由你的 NAS 提供服务" }
-    ja: { description: "herdr のコーディングエージェントをブラウザーとスマートフォンで。NAS から提供" }
-    ko: { description: "herdr의 코딩 에이전트를 브라우저와 휴대폰에서. NAS에서 제공" }
-    de: { description: "Die Coding-Agenten von herdr im Browser und auf dem Smartphone, bereitgestellt von Ihrem NAS" }
-    fr: { description: "Les agents de code de herdr dans votre navigateur et sur votre téléphone, servis par votre NAS" }
-    es: { description: "Los agentes de código de herdr en tu navegador y tu teléfono, servidos desde tu NAS" }
-    it: { description: "Gli agenti di coding di herdr nel browser e sul telefono, serviti dal tuo NAS" }
+    zh-TW: { description: "在瀏覽器和手機上使用 herdr 的 coding agent，由你的 NAS 提供服務。記憶體少於 4 GB 的 NAS 建議在其他電腦執行 agent，或改用 Pi 等輕量 agent"}
+    zh-CN: { description: "在浏览器和手机上使用 herdr 的 coding agent，由你的 NAS 提供服务。内存少于 4 GB 的 NAS 建议在其他电脑运行 agent，或改用 Pi 等轻量 agent"}
+    ja: { description: "herdr のコーディングエージェントをブラウザーとスマートフォンで。NAS から提供。メモリが 4 GB 未満の NAS では、別のコンピューターでエージェントを実行するか、Pi のような軽量なエージェントをお使いください"}
+    ko: { description: "herdr의 코딩 에이전트를 브라우저와 휴대폰에서. NAS에서 제공. 메모리가 4 GB 미만인 NAS에서는 다른 컴퓨터에서 에이전트를 실행하거나 Pi 같은 가벼운 에이전트를 사용하세요"}
+    de: { description: "Die Coding-Agenten von herdr im Browser und auf dem Smartphone, bereitgestellt von Ihrem NAS. Auf einem NAS mit weniger als 4 GB Arbeitsspeicher Agenten besser auf einem anderen Computer ausführen oder einen schlanken wie Pi nutzen"}
+    fr: { description: "Les agents de code de herdr dans votre navigateur et sur votre téléphone, servis par votre NAS. Sur un NAS doté de moins de 4 Go de mémoire, exécutez les agents sur un autre ordinateur ou choisissez-en un léger comme Pi"}
+    es: { description: "Los agentes de código de herdr en tu navegador y tu teléfono, servidos desde tu NAS. En un NAS con menos de 4 GB de memoria, ejecuta los agentes en otro equipo o usa uno ligero como Pi"}
+    it: { description: "Gli agenti di coding di herdr nel browser e sul telefono, serviti dal tuo NAS. Su un NAS con meno di 4 GB di memoria, esegui gli agenti su un altro computer o usane uno leggero come Pi"}
 
 capabilities: {composeMounts: true}
