@@ -1,11 +1,11 @@
 {
-  "en": "Package Center description recommends running agents on another computer on low-memory NAS models",
-  "zh-TW": "套件中心說明建議在低記憶體 NAS 機型上改於其他電腦執行 agent",
-  "zh-CN": "套件中心说明建议在低内存 NAS 机型上改于其他电脑运行 agent",
-  "ja": "パッケージセンターの説明で、メモリの少ない NAS では別のコンピューターでエージェントを実行することを推奨",
-  "ko": "패키지 센터 설명에서 메모리가 적은 NAS 모델은 다른 컴퓨터에서 에이전트를 실행하도록 권장",
-  "de": "Die Beschreibung im Paket-Zentrum empfiehlt bei NAS-Modellen mit wenig Arbeitsspeicher, Agenten auf einem anderen Computer auszuführen",
-  "fr": "La description du Centre de paquets recommande d’exécuter les agents sur un autre ordinateur pour les NAS disposant de peu de mémoire",
-  "es": "La descripción del Centro de paquetes recomienda ejecutar los agentes en otro equipo en modelos NAS con poca memoria",
-  "it": "La descrizione nel Centro pacchetti consiglia di eseguire gli agenti su un altro computer sui modelli NAS con poca memoria"
+  "en": "Improve installation reliability in Package Center",
+  "zh-TW": "提升在套件中心安裝的穩定性",
+  "zh-CN": "提升在套件中心安装的稳定性",
+  "ja": "パッケージセンターでのインストールの安定性を向上",
+  "ko": "패키지 센터에서의 설치 안정성 향상",
+  "de": "Zuverlässigkeit der Installation im Paket-Zentrum verbessern",
+  "fr": "Améliorer la fiabilité de l’installation dans le Centre de paquets",
+  "es": "Mejorar la fiabilidad de la instalación en el Centro de paquetes",
+  "it": "Migliorare l’affidabilità dell’installazione nel Centro pacchetti"
 }

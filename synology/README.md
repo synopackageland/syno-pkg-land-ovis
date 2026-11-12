@@ -3,8 +3,8 @@
 This folder packages unmodified [Ovis](https://github.com/devswha/ovis) behind
 DSM administrator sign-in. Upstream files outside `synology/` remain unchanged.
 
-Version 0.5.1-0004 packages unmodified upstream v0.5.1 with SDK 0.53.26
-and CLI 0.52.17. The runtime is built for x86_64 and aarch64, with Bun 1.4.2,
+Version 0.5.1-0007 packages unmodified upstream v0.5.1 with SDK 0.53.26
+and CLI 0.53.16, using the 0.5.1-0004 runtime image. The runtime is built for x86_64 and aarch64, with Bun 1.4.2,
 herdr 0.9.3 and remote bundle protocol 43. Node 22.23.4 (with npm) and the
 Node PTY fallback retain the immutable previous runtime as their tool layer.
 
