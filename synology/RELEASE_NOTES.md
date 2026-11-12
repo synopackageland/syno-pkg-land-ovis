@@ -1,3 +1,19 @@
+# Ovis 0.5.1-0007
+
+Improve installation reliability in Package Center. Rebuilt with CLI 0.53.16,
+which declares the gateway nginx reload only for start and stop
+(`startstop_restart_services="nginx.service"`); INFO no longer declares
+`instuninst_restart_services`, so installing no longer reloads nginx while DSM
+is loading package information. CLI 0.53.16 also refuses a package whose
+installed INFO (with the base64 icons DSM embeds) exceeds the 64 KiB the SDK
+executor reads; 0.5.1-0006 was about 73 KiB, so `assets/icon/icon_256.png` is
+posterized to 6 bits per colour channel (same artwork, 46 KB to 26 KB), bringing
+the installed INFO to about 47 KiB. SDK 0.53.26, the upstream version, the
+runtime image and the token helper are unchanged. Validation is limited to check,
+build, inspect, a file-by-file comparison with 0.5.1-0006 (the new CLI rejects
+0.5.1-0006 as an inspect baseline because of its INFO size) and leak scans;
+tests and NAS checks were not run.
+
 # Ovis 0.5.1-0006
 
 Package Center descriptions in all nine languages now recommend running agents
