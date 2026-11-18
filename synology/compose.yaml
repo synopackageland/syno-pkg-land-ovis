@@ -1,6 +1,6 @@
 services:
   ovis:
-    image: ghcr.io/synopackageland/syno-pkg-land-ovis-runtime:0.5.1-0004@sha256:54ac6c1a7f558b999af0d12e11a47d4791b41c1072df75113802a220f8702c35
+    image: ghcr.io/synopackageland/syno-pkg-land-ovis-runtime:0.5.4-0001@sha256:67c4675009175b8f0b8ee6809795f9b2dac14e45fdadb4647808053eb733e427
     entrypoint: [/usr/bin/tini, --, /opt/ovis/ovis-launch]
     environment:
       HOST: '0.0.0.0'

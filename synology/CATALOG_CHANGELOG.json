@@ -1,11 +1,11 @@
 {
-  "en": "Improve installation reliability in Package Center",
-  "zh-TW": "提升在套件中心安裝的穩定性",
-  "zh-CN": "提升在套件中心安装的稳定性",
-  "ja": "パッケージセンターでのインストールの安定性を向上",
-  "ko": "패키지 센터에서의 설치 안정성 향상",
-  "de": "Zuverlässigkeit der Installation im Paket-Zentrum verbessern",
-  "fr": "Améliorer la fiabilité de l’installation dans le Centre de paquets",
-  "es": "Mejorar la fiabilidad de la instalación en el Centro de paquetes",
-  "it": "Migliorare l’affidabilità dell’installazione nel Centro pacchetti"
+  "en": "Update to upstream Ovis 0.5.4: agent inbox, explained settings and a compiled server for remote PCs",
+  "zh-TW": "更新至上游 Ovis 0.5.4：代理程式收件匣、設定說明與遠端電腦的編譯版伺服器",
+  "zh-CN": "更新至上游 Ovis 0.5.4：智能体收件箱、设置说明与远程电脑的编译版服务器",
+  "ja": "上流の Ovis 0.5.4 に更新：エージェントの受信トレイ、設定の説明、リモート PC 向けのコンパイル済みサーバー",
+  "ko": "업스트림 Ovis 0.5.4로 업데이트: 에이전트 받은편지함, 설정 설명, 원격 PC용 컴파일된 서버",
+  "de": "Update auf Upstream-Ovis 0.5.4: Agenten-Posteingang, erklärte Einstellungen und ein kompilierter Server für Remote-PCs",
+  "fr": "Mise à jour vers Ovis 0.5.4 en amont : boîte de réception des agents, réglages expliqués et serveur compilé pour les PC distants",
+  "es": "Actualización a Ovis 0.5.4 de origen: bandeja de agentes, ajustes explicados y servidor compilado para PC remotos",
+  "it": "Aggiornamento a Ovis 0.5.4 upstream: posta in arrivo degli agenti, impostazioni spiegate e server compilato per i PC remoti"
 }
