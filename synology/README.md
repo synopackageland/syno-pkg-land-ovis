@@ -3,9 +3,9 @@
 This folder packages unmodified [Ovis](https://github.com/devswha/ovis) behind
 DSM administrator sign-in. Upstream files outside `synology/` remain unchanged.
 
-Version 0.5.1-0007 packages unmodified upstream v0.5.1 with SDK 0.53.26
-and CLI 0.53.16, using the 0.5.1-0004 runtime image. The runtime is built for x86_64 and aarch64, with Bun 1.4.2,
-herdr 0.9.3 and remote bundle protocol 43. Node 22.23.4 (with npm) and the
+Version 0.5.4-0001 packages unmodified upstream v0.5.4 with SDK 0.53.26
+and CLI 0.53.16, using the 0.5.4-0001 runtime image. The runtime is built for x86_64 and aarch64, with Bun 1.4.2,
+herdr 0.9.3 and remote bundle protocol 48. Node 22.23.4 (with npm) and the
 Node PTY fallback retain the immutable previous runtime as their tool layer.
 
 Fresh installations are the supported path for this storage change. Select an
@@ -263,9 +263,9 @@ administrator entry, SSH/herdr operation, UID/mount readback and package-owned
 HOME/workspace files. Static checks alone do not
 establish DSM acceptance. Keep screenshots outside Git.
 
-## Upstream v0.5.1 adapter compatibility
+## Upstream v0.5.4 adapter compatibility
 
-The upgrade was reviewed against upstream's v0.5.0/v0.5.1 changelog and tagged
+The upgrade was reviewed against upstream's v0.5.0 to v0.5.4 changelogs (v0.5.2, v0.5.3 and v0.5.4 changed no packaging contract; the build checks of Bun 1.4.2 and herdr 0.9.3 still hold) and tagged
 source. The new account, relay, desktop and herdr-core features do not replace
 the package's DSM gateway or its bundled herdr TUI runtime. The package keeps
 `OVIS_TAILSCALE_SERVE_ONLY=1`, so upstream's relay and Portal remain blocked;
@@ -279,5 +279,5 @@ known failures in `/api/machines/setup` jobs. The Add PC dialog still uses
 Its entry now lives under Devices and PCs > Add a connection > SSH. Obsolete
 pre-Ovis environment aliases were removed to match the current naming contract.
 The SDK's container init supplies the package account. The remote
-bundle version is read from `shared/machines.ts`; fixtures must use version 43
-for this release instead of the former version 41.
+bundle version is read from `shared/machines.ts`; fixtures must use version 48
+for this release instead of the former version 43.

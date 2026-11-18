@@ -1,3 +1,13 @@
+# Ovis 0.5.4-0001
+
+Update to upstream Ovis 0.5.4 (from 0.5.1): an agent inbox that lists every
+agent with the ones that need you first, settings explained where you look, and
+one verified, compiled server for installers and remote PCs. The runtime image
+is rebuilt (0.5.4-0001) with Bun 1.4.2 and herdr 0.9.3 unchanged; the remote
+bundle protocol is 48. SDK 0.53.26 and CLI 0.53.16 are unchanged. Validation is
+limited to check, build, inspect and leak scans; tests and NAS checks were not
+run.
+
 # Ovis 0.5.1-0007
 
 Improve installation reliability in Package Center. Rebuilt with CLI 0.53.16,
